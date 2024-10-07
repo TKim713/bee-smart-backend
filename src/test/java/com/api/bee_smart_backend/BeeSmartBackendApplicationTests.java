@@ -1,0 +1,13 @@
+package com.api.bee_smart_backend;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class BeeSmartBackendApplicationTests {
+
+	@Test
+	void contextLoads() {
+	}
+
+}
