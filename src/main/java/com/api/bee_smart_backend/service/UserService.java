@@ -5,4 +5,6 @@ import com.api.bee_smart_backend.helper.response.CreateUserResponse;
 
 public interface UserService {
     CreateUserResponse createUser(CreateUserRequest userRequest);
+
+    String verifyEmail(String token);
 }

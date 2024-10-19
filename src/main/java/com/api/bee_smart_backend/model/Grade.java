@@ -1,6 +1,5 @@
 package com.api.bee_smart_backend.model;
 
-import com.api.bee_smart_backend.helper.enums.Role;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,26 +10,14 @@ import java.sql.Timestamp;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name="user")
-public class User {
+@Table(name="grade")
+public class Grade {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long user_id;
+    private long grade_id;
 
     @Column(nullable = false)
-    private String username;
-
-    @Column(nullable = false)
-    private String email;
-
-    @Column(nullable = false)
-    private String password;
-
-    @Column(nullable = false)
-    private Role role;
-
-    @Column(nullable = false)
-    private boolean enabled = false;
+    private String grade_name;
 
     @Column(nullable = false)
     private Timestamp create_at;
