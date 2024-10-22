@@ -1,5 +1,6 @@
 package com.api.bee_smart_backend.controller;
 
+import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
 import com.api.bee_smart_backend.helper.request.JwtRequest;
 import com.api.bee_smart_backend.helper.response.CreateUserResponse;
@@ -27,9 +28,12 @@ public class AuthenticationController {
             JwtResponse jwtResponse = authenticationService.authenticate(authenticationRequest);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Authentication successful", jwtResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Error during authentication", null));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new ResponseObject<>(HttpStatus.UNAUTHORIZED.value(), "INVALID_CREDENTIALS", null));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
         }
     }
 
@@ -39,6 +43,9 @@ public class AuthenticationController {
             CreateUserResponse userResponse = userService.createUser(userRequest);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "User created successfully", userResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error creating user: " + e.getMessage(), null));

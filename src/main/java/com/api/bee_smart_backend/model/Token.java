@@ -29,7 +29,7 @@ public class Token {
     private boolean revoked; // Xác định token có bị thu hồi không
 
     @ManyToOne
-    @JoinColumn(name = "grade_id", nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(nullable = false)

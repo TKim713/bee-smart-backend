@@ -1,8 +1,11 @@
 package com.api.bee_smart_backend.service.impl;
 
+import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.model.Lesson;
+import com.api.bee_smart_backend.repository.GradeRepository;
 import com.api.bee_smart_backend.repository.LessonRepository;
+import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.LessonService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +15,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +28,12 @@ import java.util.stream.Collectors;
 public class LessonServiceImpl implements LessonService {
     @Autowired
     private LessonRepository lessonRepository;
+    @Autowired
+    private GradeRepository gradeRepository;
+    @Autowired
+    private TopicRepository topicRepository;
+
+    private LocalDateTime now = LocalDateTime.now();
 
 //    @Override
 //    public List<LessonResponse> getListLesson() {
@@ -64,5 +75,18 @@ public class LessonServiceImpl implements LessonService {
         response.put("totalPages", lessons.getTotalPages());
 
         return response;
+    }
+
+    @Override
+    public Lesson createLesson(LessonRequest request) {
+        Lesson lesson = new Lesson();
+        lesson.setLesson_name(request.getLessonName());
+        lesson.setDescription(request.getDescription());
+        lesson.setContent(request.getContent());
+        lesson.setGrade(gradeRepository.findById(request.getGradeId()).orElse(null)); // Lấy Grade
+        lesson.setTopic(topicRepository.findById(request.getTopicId()).orElse(null)); // Lấy Topic
+        lesson.setCreate_at(Timestamp.valueOf(now));
+
+        return lessonRepository.save(lesson);
     }
 }

@@ -3,6 +3,7 @@ package com.api.bee_smart_backend.service.impl;
 import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.enums.Role;
 import com.api.bee_smart_backend.helper.enums.TokenType;
+import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
 import com.api.bee_smart_backend.helper.response.CreateUserResponse;
 import com.api.bee_smart_backend.model.Token;
@@ -14,11 +15,13 @@ import com.api.bee_smart_backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -40,6 +43,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public CreateUserResponse createUser(CreateUserRequest userRequest) {
+        // Check if username already exists
+        Optional<User> existingUsername = userRepository.findByUsername(userRequest.getUsername());
+        if (existingUsername.isPresent()) {
+            throw new CustomException("Username already in use", HttpStatus.CONFLICT);
+        }
+
+        // Check if email already exists
+        Optional<User> existingUserEmail = userRepository.findByEmail(userRequest.getEmail());
+        if (existingUserEmail.isPresent()) {
+            throw new CustomException("Email already in use", HttpStatus.CONFLICT);
+        }
+
         // Mã hóa mật khẩu
         String password = passwordEncoder.encode(userRequest.getPassword());
 
@@ -68,10 +83,7 @@ public class UserServiceImpl implements UserService {
         // Gửi email xác thực với tên người dùng
         emailService.sendEmail(user.getEmail(), "🌟 Xác Thực Email của Bạn cho Bee Smart! 🌟", tokenStr, savedUser.getUsername());
 
-        CreateUserResponse response = mapData.mapOne(savedUser, CreateUserResponse.class);
-        response.setPassword(user.getPassword());
-        response.setRole(user.getRole().toString());
-        return response;
+        return mapData.mapOne(savedUser, CreateUserResponse.class);
     }
 
 

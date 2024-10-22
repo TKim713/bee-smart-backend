@@ -1,15 +1,14 @@
 package com.api.bee_smart_backend.controller;
 
+import com.api.bee_smart_backend.helper.request.LessonRequest;
+import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.model.Grade;
 import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.service.LessonService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
@@ -41,4 +40,17 @@ public class LessonController {
         }
         return result;
     }
+
+    @PostMapping("/create")
+    public ResponseEntity<ResponseObject<Lesson>> createLesson(@RequestBody LessonRequest request) {
+        try {
+            Lesson createdLesson = lessonService.createLesson(request);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lesson created successfully", createdLesson));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error creating lesson: " + e.getMessage(), null));
+        }
+    }
+
 }
