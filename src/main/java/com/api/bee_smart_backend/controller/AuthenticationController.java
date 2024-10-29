@@ -27,7 +27,7 @@ public class AuthenticationController {
         try {
             JwtResponse jwtResponse = authenticationService.authenticate(authenticationRequest);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Authentication successful", jwtResponse));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Đăng nhập thành công", jwtResponse));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Error during authentication", null));
@@ -42,7 +42,7 @@ public class AuthenticationController {
         try {
             CreateUserResponse userResponse = userService.createUser(userRequest);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "User created successfully", userResponse));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Đăng ký thành công", userResponse));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));

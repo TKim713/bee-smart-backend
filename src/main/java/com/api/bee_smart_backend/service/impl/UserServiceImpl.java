@@ -46,13 +46,13 @@ public class UserServiceImpl implements UserService {
         // Check if username already exists
         Optional<User> existingUsername = userRepository.findByUsername(userRequest.getUsername());
         if (existingUsername.isPresent()) {
-            throw new CustomException("Username already in use", HttpStatus.CONFLICT);
+            throw new CustomException("Username đã tồn tại", HttpStatus.CONFLICT);
         }
 
         // Check if email already exists
         Optional<User> existingUserEmail = userRepository.findByEmail(userRequest.getEmail());
         if (existingUserEmail.isPresent()) {
-            throw new CustomException("Email already in use", HttpStatus.CONFLICT);
+            throw new CustomException("Email đã tồn tại", HttpStatus.CONFLICT);
         }
 
         // Mã hóa mật khẩu
