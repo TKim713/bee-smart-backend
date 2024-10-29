@@ -14,10 +14,11 @@ import lombok.NoArgsConstructor;
 @Data
 public class CreateUserRequest {
     private String username;
-    @Email(message = "Email should be valid")
+    @Email(message = "Email không hợp lệ")
+    @Pattern(regexp = "^[\\w.%+-]+@gmail\\.com$", message = "Email không hợp lệ")
     private String email;
-    @Size(min = 6, max = 18, message = "Password should be between 6 and 18 characters")
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*[@$!%*#?&]).*$", message = "Password should contain at least one lowercase, one uppercase, and one special character (@$!%*#?&)")
+    @Size(min = 8, max = 11, message = "Mật khẩu phải có từ 8 đến 11 ký tự")
+    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*[@$!%*#?&]).*$", message = "Mật khẩu phải chứa ít nhất một chữ thường, một chữ hoa và một ký tự đặc biệt (@$!%*#?&)")
     private String password;
     private String role;
 }

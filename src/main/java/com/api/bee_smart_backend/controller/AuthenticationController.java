@@ -8,6 +8,7 @@ import com.api.bee_smart_backend.helper.response.JwtResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.service.AuthenticationService;
 import com.api.bee_smart_backend.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,7 +39,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<ResponseObject<CreateUserResponse>> register(@RequestBody CreateUserRequest userRequest) {
+    public ResponseEntity<ResponseObject<CreateUserResponse>> register(@Valid @RequestBody CreateUserRequest userRequest) {
         try {
             CreateUserResponse userResponse = userService.createUser(userRequest);
             return ResponseEntity.status(HttpStatus.OK)
