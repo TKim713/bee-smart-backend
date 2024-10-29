@@ -71,19 +71,23 @@ public class UserServiceImpl implements UserService {
 
         // Tạo token xác thực
         String tokenStr = UUID.randomUUID().toString();
-        Token token = new Token();
-        token.setToken(tokenStr);
-        token.setTokenType(TokenType.BEARER);
-        token.setExpired(false);
-        token.setRevoked(false);
-        token.setUser(savedUser);
-        token.setCreate_at(Timestamp.valueOf(now));
-        tokenRepository.save(token);
+
+        Token token = Token.builder()
+                .token(tokenStr)
+                .tokenType(TokenType.BEARER)
+                .expired(false)
+                .revoked(false)
+                .user(savedUser)
+                .create_at(Timestamp.valueOf(now))
+                .build();
+        Token savedToken = tokenRepository.save(token);
 
         // Gửi email xác thực với tên người dùng
         emailService.sendEmail(user.getEmail(), "🌟 Xác Thực Email của Bạn cho Bee Smart! 🌟", tokenStr, savedUser.getUsername());
 
-        return mapData.mapOne(savedUser, CreateUserResponse.class);
+        CreateUserResponse response = mapData.mapOne(savedUser, CreateUserResponse.class);
+        response.setToken(savedToken.getToken());
+        return response;
     }
 
 
@@ -98,9 +102,9 @@ public class UserServiceImpl implements UserService {
             token.setExpired(true); // Đánh dấu token đã hết hạn sau khi xác thực
             tokenRepository.save(token);
 
-            return "Email verified successfully!";
+            return "Xác thực email thành công!";
         } else {
-            return "Invalid or expired verification link!";
+            return "Liên kết xác minh không hợp lệ hoặc đã hết hạn!";
         }
     }
 }

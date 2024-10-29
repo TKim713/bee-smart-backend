@@ -10,9 +10,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class LessonRequest {
-    private String lessonName;
+    private String lesson_name;
     private String description;
     private String content;
-    private Long gradeId; // ID của Grade
-    private Long topicId; // ID của Topic
+    private String grade_name;
+    private String topic_name;
 }

@@ -1,6 +1,5 @@
 package com.api.bee_smart_backend.repository;
 
-import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.model.Lesson;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

@@ -18,7 +18,7 @@ public class GradeController {
     @Autowired
     private GradeService gradeService;
 
-    @GetMapping("/getAll")
+    @GetMapping
     public ResponseEntity<List<Grade>> getAllGrades() {
         List<Grade> grades = gradeService.getAllGrades();
         if (grades.isEmpty()) {

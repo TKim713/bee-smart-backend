@@ -11,5 +11,5 @@ public class LessonResponse {
     private String description;
     private String content;
     private String grade_name;
-    private String topic;
+    private String topic_name;
 }

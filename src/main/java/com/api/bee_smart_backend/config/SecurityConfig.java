@@ -16,6 +16,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -30,18 +35,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-//                .csrf(csrf -> csrf
-//                        .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()))
                 .csrf(AbstractHttpConfigurer::disable)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS using the configuration source
                 .authorizeHttpRequests(authorize -> authorize
-                                .requestMatchers("/api/auth/**").permitAll()
-                        // APIs accessible by SYSTEM_ADMIN and RESTAURANT_OWNER only (e.g., staff management)
-                        //.requestMatchers("/api/staff/**").hasAnyAuthority(RolePermissions.STAFF_MANAGEMENT_ROLES)
-                        // APIs accessible by SYSTEM_ADMIN, RESTAURANT_OWNER, and RESTAURANT_STAFF (e.g., customer management)
-                        //.requestMatchers("/api/customer/**").hasAnyAuthority(RolePermissions.CUSTOMER_MANAGEMENT_ROLES)
-                        // All other APIs accessible by all defined roles
+                        .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
-                        // Any other requests should be authenticated
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandling -> exceptionHandling
@@ -74,5 +72,18 @@ public class SecurityConfig {
     @Bean
     public ModelMapper modelMapper() {
         return new ModelMapper();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); // Specify your frontend URL
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE")); // Allowed HTTP methods
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type")); // Allowed headers
+        configuration.setAllowCredentials(true); // Allow credentials (cookies, authorization headers)
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration); // Apply CORS configuration globally
+        return source;
     }
 }

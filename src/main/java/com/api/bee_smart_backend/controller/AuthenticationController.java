@@ -55,6 +55,13 @@ public class AuthenticationController {
     @GetMapping("/verify")
     public ResponseEntity<String> verifyUser(@RequestParam String token) {
         String message = userService.verifyEmail(token);
-        return ResponseEntity.ok(message);
+
+        if (message.contains("Xác thực email thành công!")) {
+            return ResponseEntity.ok(message);
+        } else if (message.contains("Người dùng không tìm thấy!")) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(message);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
+        }
     }
 }
