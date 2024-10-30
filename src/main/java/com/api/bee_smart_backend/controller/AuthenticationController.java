@@ -65,4 +65,19 @@ public class AuthenticationController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
         }
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ResponseObject<String>> logout(@RequestHeader("Authorization") String token) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            authenticationService.logout(jwtToken);
+            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Logout successfully", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Error during logout", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+        }
+    }
 }

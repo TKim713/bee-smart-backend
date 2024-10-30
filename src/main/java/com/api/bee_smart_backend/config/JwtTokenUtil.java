@@ -6,6 +6,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import com.api.bee_smart_backend.model.Token;
+import com.api.bee_smart_backend.repository.TokenRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -20,6 +23,9 @@ public class JwtTokenUtil implements Serializable {
     private static final long serialVersionUID = -2550185165626007488L;
 
     public static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60;
+
+    @Autowired
+    private TokenRepository tokenRepository;
 
     @Value("${jwt.secret}")
     private String secret;
@@ -49,6 +55,11 @@ public class JwtTokenUtil implements Serializable {
         return expiration.before(new Date());
     }
 
+    public boolean isTokenRevoked(String token) {
+        Token savedToken = tokenRepository.findByToken(token);
+        return savedToken != null && savedToken.isRevoked();
+    }
+
     // Generate token for user
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
@@ -66,8 +77,10 @@ public class JwtTokenUtil implements Serializable {
     }
 
     // Validate token
-    public Boolean validateToken(String token, UserDetails userDetails) {
-        final String username = getUsernameFromToken(token);
-        return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    public boolean validateToken(String token, UserDetails userDetails) {
+        String username = getUsernameFromToken(token);
+        return username.equals(userDetails.getUsername()) &&
+                !isTokenExpired(token) &&
+                !isTokenRevoked(token);
     }
 }

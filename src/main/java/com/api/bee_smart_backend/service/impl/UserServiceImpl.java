@@ -100,6 +100,9 @@ public class UserServiceImpl implements UserService {
             userRepository.save(user);
 
             token.setExpired(true); // Đánh dấu token đã hết hạn sau khi xác thực
+            token.setRevoked(true);
+            token.setUpdate_at(Timestamp.valueOf(now));
+            token.setDelete_at(Timestamp.valueOf(now));
             tokenRepository.save(token);
 
             return "Xác thực email thành công!";
