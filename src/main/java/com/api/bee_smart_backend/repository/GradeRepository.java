@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import java.util.Optional;
 
 public interface GradeRepository extends JpaRepository<Grade, Long> {
-    @Query(value = "SELECT grade_id FROM Grade g WHERE g.grade_name = :gradeName", nativeQuery = true)
+    @Query(value = "SELECT * FROM grade g WHERE g.grade_name = :gradeName", nativeQuery = true)
     Optional<Grade> findByGradeName(String gradeName);
 }

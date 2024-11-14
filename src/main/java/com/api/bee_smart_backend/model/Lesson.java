@@ -21,16 +21,10 @@ public class Lesson {
     private String lesson_name;
 
     private String description;
-
-    @Column(nullable = false)
     private String content;
 
     @ManyToOne
-    @JoinColumn(name = "grade_id", nullable = false)
-    private Grade grade;
-
-    @ManyToOne
-    @JoinColumn(name = "topic_id", nullable = false)
+    @JoinColumn(name = "topic_id")
     private Topic topic;
 
     @Column(nullable = false)

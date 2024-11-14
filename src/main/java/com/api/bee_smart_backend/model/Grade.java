@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.sql.Timestamp;
+import java.util.List;
 
 @Data
 @Builder
@@ -19,8 +20,16 @@ public class Grade {
     @Column(nullable = false)
     private String grade_name;
 
+    @OneToMany(mappedBy = "grade")
+    private List<Chapter> chapters;
+
     @Column(nullable = false)
     private Timestamp create_at;
     private Timestamp update_at;
     private Timestamp delete_at;
+
+    public void addChapter(Chapter chapter) {
+        chapters.add(chapter);
+        chapter.setGrade(this);
+    }
 }

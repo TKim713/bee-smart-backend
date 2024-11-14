@@ -6,7 +6,14 @@ import com.api.bee_smart_backend.helper.response.LessonResponse;
 import java.util.Map;
 
 public interface LessonService {
-    Map<String, Object> getAllLessons(String page, String size, String search);
+    Map<String, Object> getListLessonByTopic(Long topicId, int limit, int skip);
 
-    LessonResponse createLesson(LessonRequest request);
+    //Map<String, Object> getAllLessons(String page, String size, String search);
+
+    LessonResponse createLessonByTopicId(Long topicId, LessonRequest request);
+
+    LessonResponse getLessonById(Long lessonId);
+
+    // Check if the user is authenticated based on the JWT token
+    boolean isAuthenticated();
 }

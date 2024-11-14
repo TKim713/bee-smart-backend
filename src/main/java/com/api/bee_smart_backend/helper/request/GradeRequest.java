@@ -9,8 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @Data
-public class LessonRequest {
-    private String lesson_name;
-    private String description;
-    private String content;
+public class GradeRequest {
+    private String grade_name;
 }

@@ -39,7 +39,9 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS using the configuration source
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
+                        .requestMatchers("/api/lesson/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
+                        .requestMatchers("/api/grade/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
+                        .requestMatchers("/api/chapter/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandling -> exceptionHandling
