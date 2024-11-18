@@ -14,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthenticationController {
@@ -78,6 +80,25 @@ public class AuthenticationController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ResponseObject<JwtResponse>> refreshToken(@RequestBody Map<String, String> refreshTokenRequest) {
+        try {
+            String refreshToken = refreshTokenRequest.get("refreshToken");
+            if (refreshToken == null) {
+                throw new CustomException("Refresh token is required", HttpStatus.BAD_REQUEST);
+            }
+
+            JwtResponse jwtResponse = authenticationService.refreshToken(refreshToken);
+            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Token refreshed successfully", jwtResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Error refreshing token", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Unexpected error: " + e.getMessage(), null));
         }
     }
 }

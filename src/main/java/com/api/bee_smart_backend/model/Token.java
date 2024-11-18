@@ -20,7 +20,8 @@ public class Token {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long token_id;
 
-    private String token;
+    private String accessToken;
+    private String refreshToken;
 
     @Enumerated(EnumType.STRING)
     private TokenType tokenType;

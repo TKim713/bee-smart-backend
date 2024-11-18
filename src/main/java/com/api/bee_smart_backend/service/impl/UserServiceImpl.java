@@ -73,7 +73,7 @@ public class UserServiceImpl implements UserService {
         String tokenStr = UUID.randomUUID().toString();
 
         Token token = Token.builder()
-                .token(tokenStr)
+                .accessToken(tokenStr)
                 .tokenType(TokenType.BEARER)
                 .expired(false)
                 .revoked(false)
@@ -86,14 +86,14 @@ public class UserServiceImpl implements UserService {
         emailService.sendEmail(user.getEmail(), "🌟 Xác Thực Email của Bạn cho Bee Smart! 🌟", tokenStr, savedUser.getUsername());
 
         CreateUserResponse response = mapData.mapOne(savedUser, CreateUserResponse.class);
-        response.setToken(savedToken.getToken());
+        response.setToken(savedToken.getAccessToken());
         return response;
     }
 
 
     // Method xác thực email
     public String verifyEmail(String tokenStr) {
-        Token token = tokenRepository.findByToken(tokenStr);
+        Token token = tokenRepository.findByAccessToken(tokenStr);
         if (token != null && !token.isExpired() && !token.isRevoked()) {
             User user = token.getUser();
             user.setEnabled(true);  // Kích hoạt tài khoản user

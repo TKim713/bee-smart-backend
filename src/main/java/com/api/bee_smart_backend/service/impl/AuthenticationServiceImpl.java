@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
@@ -66,10 +65,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(authenticationRequest.getUsername());
-        String token = jwtTokenUtil.generateToken(userDetails);
+        String accessToken = jwtTokenUtil.generateToken(userDetails);
+        String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
         Token newToken = Token.builder()
-                .token(token)
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .tokenType(TokenType.BEARER)
                 .expired(false)
                 .revoked(false)
@@ -79,12 +80,12 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         tokenRepository.save(newToken);
 
-        return new JwtResponse(token);
+        return new JwtResponse(accessToken, refreshToken);
     }
 
     @Override
     public void logout(String tokenStr) {
-        Token token = tokenRepository.findByToken(tokenStr);
+        Token token = tokenRepository.findByAccessToken(tokenStr);
         if (token != null) {
             token.setExpired(true);
             token.setRevoked(true);
@@ -94,5 +95,32 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         } else {
             throw new CustomException("Token not found", HttpStatus.NOT_FOUND);
         }
+    }
+
+    @Override
+    public JwtResponse refreshToken(String refreshToken) {
+        if (!jwtTokenUtil.validateRefreshToken(refreshToken)) {
+            Token token = tokenRepository.findByRefreshToken(refreshToken);
+            if (token != null) {
+                token.setExpired(true);
+                token.setRevoked(true);
+                tokenRepository.save(token);
+            }
+            throw new CustomException("Invalid or expired refresh token", HttpStatus.UNAUTHORIZED);
+        }
+
+        Token token = tokenRepository.findByRefreshToken(refreshToken);
+        if (token == null) {
+            throw new CustomException("Invalid refresh token", HttpStatus.UNAUTHORIZED);
+        }
+
+        UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(token.getUser().getUsername());
+        String newAccessToken = jwtTokenUtil.generateToken(userDetails);
+
+        token.setAccessToken(newAccessToken);
+        token.setUpdate_at(Timestamp.valueOf(now));
+        tokenRepository.save(token);
+
+        return new JwtResponse(newAccessToken, refreshToken);
     }
 }

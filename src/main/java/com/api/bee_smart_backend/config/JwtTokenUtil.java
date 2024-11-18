@@ -22,7 +22,7 @@ public class JwtTokenUtil implements Serializable {
 
     private static final long serialVersionUID = -2550185165626007488L;
 
-    public static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60;
+    public static final long JWT_TOKEN_VALIDITY = 60 * 60;
 
     @Autowired
     private TokenRepository tokenRepository;
@@ -56,7 +56,7 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean isTokenRevoked(String token) {
-        Token savedToken = tokenRepository.findByToken(token);
+        Token savedToken = tokenRepository.findByAccessToken(token);
         return savedToken != null && savedToken.isRevoked();
     }
 
@@ -64,6 +64,15 @@ public class JwtTokenUtil implements Serializable {
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         return doGenerateToken(claims, userDetails.getUsername());
+    }
+
+    public String generateRefreshToken(UserDetails userDetails) {
+        return Jwts.builder()
+                .setSubject(userDetails.getUsername())
+                .setIssuedAt(new Date(System.currentTimeMillis()))
+                .setExpiration(new Date(System.currentTimeMillis() + (10 * 24 * 60 * 60 * 1000L))) // 10 days
+                .signWith(SignatureAlgorithm.HS512, secret)
+                .compact();
     }
 
     private String doGenerateToken(Map<String, Object> claims, String subject) {
@@ -82,5 +91,16 @@ public class JwtTokenUtil implements Serializable {
         return username.equals(userDetails.getUsername()) &&
                 !isTokenExpired(token) &&
                 !isTokenRevoked(token);
+    }
+
+    public boolean validateRefreshToken(String refreshToken) {
+        try {
+            String username = getUsernameFromToken(refreshToken);
+            boolean isExpired = isTokenExpired(refreshToken);
+            boolean isRevoked = isTokenRevoked(refreshToken);
+            return !isExpired && !isRevoked;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 }

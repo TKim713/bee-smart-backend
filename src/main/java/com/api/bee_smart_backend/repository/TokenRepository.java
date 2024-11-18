@@ -4,5 +4,6 @@ import com.api.bee_smart_backend.model.Token;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TokenRepository extends JpaRepository<Token, Long> {
-    Token findByToken(String token);
+    Token findByAccessToken(String accessToken);
+    Token findByRefreshToken(String refreshToken);
 }

@@ -8,4 +8,6 @@ public interface AuthenticationService {
     JwtResponse authenticate(JwtRequest authenticationRequest) throws CustomException;
 
     void logout(String tokenStr);
+
+    JwtResponse refreshToken(String refreshToken);
 }
