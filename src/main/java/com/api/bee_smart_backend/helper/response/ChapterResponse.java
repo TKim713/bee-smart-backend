@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class ChapterResponse {
-    private long chapter_id;
-    private String chapter_name;
+    private String chapterId;
+    private String chapterName;
 }

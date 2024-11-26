@@ -19,8 +19,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
@@ -36,7 +35,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Autowired
     private TokenRepository tokenRepository;
 
-    private LocalDateTime now = LocalDateTime.now();
+    private Instant now = Instant.now();
 
     @Override
     public JwtResponse authenticate(JwtRequest authenticationRequest) throws CustomException {
@@ -74,8 +73,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .tokenType(TokenType.BEARER)
                 .expired(false)
                 .revoked(false)
-                .user(user)
-                .create_at(Timestamp.valueOf(now))
+                .user(user) // `user` reference is still valid in MongoDB
+                .createdAt(now)
                 .build();
 
         tokenRepository.save(newToken);
@@ -89,8 +88,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         if (token != null) {
             token.setExpired(true);
             token.setRevoked(true);
-            token.setUpdate_at(Timestamp.valueOf(now));
-            token.setDelete_at(Timestamp.valueOf(now));
+            token.setUpdatedAt(now);
+            token.setDeletedAt(now);
             tokenRepository.save(token);
         } else {
             throw new CustomException("Token not found", HttpStatus.NOT_FOUND);
@@ -118,7 +117,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         String newAccessToken = jwtTokenUtil.generateToken(userDetails);
 
         token.setAccessToken(newAccessToken);
-        token.setUpdate_at(Timestamp.valueOf(now));
+        token.setUpdatedAt(now);
         tokenRepository.save(token);
 
         return new JwtResponse(newAccessToken, refreshToken);

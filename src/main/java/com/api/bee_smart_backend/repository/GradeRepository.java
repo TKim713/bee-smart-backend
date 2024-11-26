@@ -1,12 +1,13 @@
 package com.api.bee_smart_backend.repository;
 
 import com.api.bee_smart_backend.model.Grade;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 import java.util.Optional;
 
-public interface GradeRepository extends JpaRepository<Grade, Long> {
-    @Query(value = "SELECT * FROM grade g WHERE g.grade_name = :gradeName", nativeQuery = true)
+public interface GradeRepository extends MongoRepository<Grade, String> {
+    @Query("{ 'gradeName' : ?0 }")
     Optional<Grade> findByGradeName(String gradeName);
 }
+

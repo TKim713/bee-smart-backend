@@ -6,7 +6,8 @@ import com.api.bee_smart_backend.helper.response.ChapterResponse;
 import java.util.Map;
 
 public interface ChapterService {
-    ChapterResponse createChapterByGradeId(Long gradeId, ChapterRequest request);
 
-    Map<String, Object> getListChapterByGrade(Long gradeId, int limit, int skip);
+    ChapterResponse createChapterByGradeId(String gradeId, ChapterRequest request);
+
+    Map<String, Object> getListChapterByGrade(String gradeId, int limit, int skip);
 }

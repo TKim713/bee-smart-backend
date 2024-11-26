@@ -6,7 +6,6 @@ import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Topic;
-import com.api.bee_smart_backend.repository.GradeRepository;
 import com.api.bee_smart_backend.repository.LessonRepository;
 import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.LessonService;
@@ -21,8 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,16 +33,46 @@ public class LessonServiceImpl implements LessonService {
     @Autowired
     private LessonRepository lessonRepository;
     @Autowired
-    private GradeRepository gradeRepository;
-    @Autowired
     private TopicRepository topicRepository;
 
     private final MapData mapData;
 
-    private LocalDateTime now = LocalDateTime.now();
+    private final Instant now = Instant.now();
 
     @Override
-    public Map<String, Object> getListLessonByTopic(Long topicId, int limit, int skip) {
+    public Map<String, Object> getAllLessons(String page, String size, String search) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Page<Lesson> lessonPage;
+
+        if (search == null || search.isBlank()) {
+            lessonPage = lessonRepository.findAll(pageable);
+        } else {
+            lessonPage = lessonRepository.findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search, pageable);
+        }
+
+        List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
+                .map(lesson -> LessonResponse.builder()
+                        .lessonId(lesson.getLessonId())
+                        .lessonName(lesson.getLessonName())
+                        .description(lesson.getDescription())
+                        .content(lesson.getContent())
+                        .build())
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalItems", lessonPage.getTotalElements());
+        response.put("totalPages", lessonPage.getTotalPages());
+        response.put("currentPage", lessonPage.getNumber());
+        response.put("lessons", lessonResponses);
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Object> getListLessonByTopic(String topicId, int limit, int skip) {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
@@ -53,7 +81,7 @@ public class LessonServiceImpl implements LessonService {
         Pageable pageable = PageRequest.of(skip / limit, limit);
         Page<Lesson> lessonPage = lessonRepository.findByTopic(topic, pageable);
 
-        List<LessonResponse> lessons = lessonPage.stream()
+        List<LessonResponse> lessons = lessonPage.getContent().stream()
                 .map(lesson -> mapData.mapOne(lesson, LessonResponse.class))
                 .collect(Collectors.toList());
 
@@ -66,58 +94,24 @@ public class LessonServiceImpl implements LessonService {
         return response;
     }
 
-//    public Map<String, Object> getAllLessons(String page, String size, String search) {
-//        // Xử lý phân trang
-//        int pageNumber = (page != null) ? Integer.parseInt(page) : 0;
-//        int pageSize = (size != null) ? Integer.parseInt(size) : 10;
-//
-//        Pageable pageable = PageRequest.of(pageNumber, pageSize);
-//
-//        // Nếu có tìm kiếm, sử dụng search để lọc kết quả
-//        Page<Lesson> lessons;
-//        if (search != null && !search.isEmpty()) {
-//            lessons = lessonRepository.findByNameContainingIgnoreCase(search, pageable);
-//        } else {
-//            lessons = lessonRepository.findAll(pageable);
-//        }
-//
-//        // Chuyển đổi từ Lesson sang LessonResponse
-//        List<LessonResponse> lessonResponses = lessons.getContent().stream().map(lesson ->
-//                LessonResponse.builder()
-//                        .lesson_name(lesson.getLesson_name())
-//                        .description(lesson.getDescription())
-//                        .content(lesson.getContent())
-//                        .build()
-//        ).collect(Collectors.toList());
-//
-//        // Chuẩn bị kết quả trả về
-//        Map<String, Object> response = new HashMap<>();
-//        response.put("lessons", lessonResponses);
-//        response.put("currentPage", lessons.getNumber());
-//        response.put("totalItems", lessons.getTotalElements());
-//        response.put("totalPages", lessons.getTotalPages());
-//
-//        return response;
-//    }
-
     @Override
-    public LessonResponse createLessonByTopicId(Long topicId, LessonRequest request) {
+    public LessonResponse createLessonByTopicId(String topicId, LessonRequest request) {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
         boolean lessonExists = topic.getLessons().stream()
-                .anyMatch(lesson -> lesson.getLesson_name().equalsIgnoreCase(request.getLesson_name()));
+                .anyMatch(lesson -> lesson.getLessonName().equalsIgnoreCase(request.getLessonName()));
 
         if (lessonExists) {
-            throw new CustomException("Bài học '" + request.getLesson_name() + "' đã tồn tại trong chủ đề này.", HttpStatus.CONFLICT);
+            throw new CustomException("Bài học '" + request.getLessonName() + "' đã tồn tại trong chủ đề này.", HttpStatus.CONFLICT);
         }
 
         Lesson lesson = Lesson.builder()
-                .lesson_name(request.getLesson_name())
+                .lessonName(request.getLessonName())
                 .description(request.getDescription())
                 .content(request.getContent())
                 .topic(topic)
-                .create_at(Timestamp.valueOf(now))
+                .createdAt(now)
                 .build();
 
         Lesson savedLesson = lessonRepository.save(lesson);
@@ -128,10 +122,10 @@ public class LessonServiceImpl implements LessonService {
     }
 
     @Override
-    public LessonResponse getLessonById(Long lessonId) {
-        // Check if the lesson is accessible
+    public LessonResponse getLessonById(String lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Lesson not found with ID: " + lessonId, HttpStatus.NOT_FOUND));
+
         if (isFirstLessonOfFirstTopic(lesson) || isAuthenticated()) {
             return mapData.mapOne(lesson, LessonResponse.class);
         } else {
@@ -139,24 +133,17 @@ public class LessonServiceImpl implements LessonService {
         }
     }
 
-    public boolean isFirstLessonOfFirstTopic(Lesson lesson) {
-        // Find the first topic in the database
+    private boolean isFirstLessonOfFirstTopic(Lesson lesson) {
         Topic firstTopic = topicRepository.findFirstByOrderByIdAsc();
-        // Find the first lesson of the first topic
         Lesson firstLesson = lessonRepository.findFirstByTopicOrderByIdAsc(firstTopic);
-        // Check if the lesson is the first lesson of the first topic
-        return lesson.getLesson_id() == firstLesson.getLesson_id();
+
+        return lesson.getLessonId().equals(firstLesson.getLessonId());
     }
 
     @Override
     public boolean isAuthenticated() {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
 
-        if (authentication != null && authentication.isAuthenticated()) {
-            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-
-            return true;
-        }
-        return false;
+        return authentication != null && authentication.isAuthenticated() && authentication.getPrincipal() instanceof UserDetails;
     }
 }

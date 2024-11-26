@@ -2,20 +2,23 @@ package com.api.bee_smart_backend.repository;
 
 import com.api.bee_smart_backend.model.Chapter;
 import com.api.bee_smart_backend.model.Topic;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface TopicRepository extends JpaRepository<Topic, Long> {
-    @Query(value = "SELECT * FROM topic t WHERE t.topic_name = :topicName", nativeQuery = true)
+public interface TopicRepository extends MongoRepository<Topic, String> {
+    @Query("{ 'topicName' : ?0 }")
     Optional<Topic> findByTopicName(String topicName);
 
-    @Query(value = "SELECT * FROM topic ORDER BY topic_id ASC LIMIT 1;\n", nativeQuery = true)
+    @Query(value = "{}", sort = "{ '_id' : 1 }")
     Topic findFirstByOrderByIdAsc();
 
-    List<Topic> findByChapter(Chapter chapter);
+    Page<Topic> findByChapter(Chapter chapter, Pageable pageable);
 
-    long countByChapter(Chapter chapter);
+    long countByChapterIn(List<Chapter> chapters);
 }
+

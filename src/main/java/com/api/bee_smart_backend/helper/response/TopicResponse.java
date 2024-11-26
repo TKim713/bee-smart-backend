@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class TopicResponse {
-    private Long topic_id;
-    private String topic_name;
+    private String topicId;
+    private String topicName;
 }

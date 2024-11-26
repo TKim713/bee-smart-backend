@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 public interface TopicService {
-    TopicResponse createTopicByChapterId(Long chapterId, TopicRequest request);
+    TopicResponse createTopicByChapterId(String chapterId, TopicRequest request);
 
-    Map<String, Object> getListTopicByChapter(Long chapterId, int limit, int skip);
+    Map<String, Object> getListTopicByChapter(String chapterId, int limit, int skip);
 }

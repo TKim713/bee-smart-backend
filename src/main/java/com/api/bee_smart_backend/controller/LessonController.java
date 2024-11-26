@@ -14,28 +14,28 @@ import java.util.Collections;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/lesson")
+@RequestMapping("/api/lessons")
 public class LessonController {
     @Autowired
     private LessonService lessonService;
 
-//    @GetMapping
-//    public ResponseEntity<ResponseObject<Map<String, Object>>> getAllLessons(@RequestParam(name = "page", required = false) String page,
-//                                                                             @RequestParam(name = "size", required = false) String size,
-//                                                                             @RequestParam(name = "search", required = false, defaultValue = "") String search) {
-//        try {
-//            Map<String, Object> result = lessonService.getAllLessons(page, size, search);
-//
-//            return ResponseEntity.status(HttpStatus.OK)
-//                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lessons retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
-//        }
-//    }
+    @GetMapping
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getAllLessons(@RequestParam(name = "page", required = false) String page,
+                                                                             @RequestParam(name = "size", required = false) String size,
+                                                                             @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+        try {
+            Map<String, Object> result = lessonService.getAllLessons(page, size, search);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lessons retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+        }
+    }
 
     @GetMapping("/{lessonId}")
-    public ResponseEntity<ResponseObject<LessonResponse>> getLessonById(@PathVariable Long lessonId) {
+    public ResponseEntity<ResponseObject<LessonResponse>> getLessonById(@PathVariable String lessonId) {
         try {
             // Retrieve lesson with access logic
             LessonResponse lessonResponse = lessonService.getLessonById(lessonId);
@@ -47,6 +47,23 @@ public class LessonController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving lesson: " + e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/topic/{topicId}")
+    public ResponseEntity<ResponseObject<LessonResponse>> createLessonByTopicId(
+            @PathVariable String topicId,
+            @RequestBody LessonRequest request) {
+        try {
+            LessonResponse lessonResponse = lessonService.createLessonByTopicId(topicId, request);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ResponseObject<>(HttpStatus.CREATED.value(), "Bài học được tạo thành công!", lessonResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi tạo bài học: " + e.getMessage(), null));
         }
     }
 }

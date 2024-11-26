@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class TopicRequest {
-    private String topic_name;
+    private String topicName;
 }

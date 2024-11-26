@@ -1,39 +1,40 @@
 package com.api.bee_smart_backend.model;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name="chapter")
+@Document(collection = "chapter")
 public class Chapter {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long chapter_id;
+    private String chapterId;
 
-    @Column(nullable = false)
-    private String chapter_name;
+    private String chapterName;
 
-    @ManyToOne
-    @JoinColumn(name = "grade_id")
+    @DBRef
     private Grade grade;
 
-    @OneToMany(mappedBy = "chapter")
-    private List<Topic> topics;
+    @DBRef
+    @ToString.Exclude
+    private List<Topic> topics = new ArrayList<>();
 
-    @Column(nullable = false)
-    private Timestamp create_at;
-    private Timestamp update_at;
-    private Timestamp delete_at;
+    @CreatedDate
+    private Instant createdAt;
+    @LastModifiedDate
+    private Instant updatedAt;
+    @LastModifiedDate
+    private Instant deletedAt;
 
     public void addTopic(Topic topic) {
         topics.add(topic);

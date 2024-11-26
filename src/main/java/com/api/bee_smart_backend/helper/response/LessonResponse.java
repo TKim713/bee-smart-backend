@@ -7,8 +7,8 @@ import lombok.*;
 @Builder
 @Data
 public class LessonResponse {
-    private long lesson_id;
-    private String lesson_name;
+    private String lessonId;
+    private String lessonName;
     private String description;
     private String content;
 }

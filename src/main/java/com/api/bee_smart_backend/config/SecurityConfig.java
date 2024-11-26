@@ -6,6 +6,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -39,9 +40,14 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Enable CORS using the configuration source
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/lesson/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
-                        .requestMatchers("/api/grade/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
-                        .requestMatchers("/api/chapter/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
+                        .requestMatchers(HttpMethod.GET, "/api/lessons/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/grades/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/topics/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/chapters/**").permitAll()
+                        .requestMatchers("/api/lessons/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
+                        .requestMatchers("/api/grades/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
+                        .requestMatchers("/api/chapters/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
+                        .requestMatchers("/api/topics/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandling -> exceptionHandling

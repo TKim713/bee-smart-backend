@@ -19,6 +19,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthenticationController {
+
     @Autowired
     private AuthenticationService authenticationService;
 
@@ -102,3 +103,4 @@ public class AuthenticationController {
         }
     }
 }
+

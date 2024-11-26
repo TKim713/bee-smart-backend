@@ -1,20 +1,18 @@
 package com.api.bee_smart_backend.repository;
 
 import com.api.bee_smart_backend.model.User;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
+import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends MongoRepository<User, String> {
     Optional<User> findByUsername(String username);
 
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.email = :email")
-    boolean existsByEmail(@Param("email") String email);
+    @Query(value = "{ 'email': ?0 }", exists = true)
+    boolean existsByEmail(String email);
 
-    @Query("SELECT COUNT(u) > 0 FROM User u WHERE u.username = :username")
-    boolean existsByUsername(@Param("username") String username);
+    @Query(value = "{ 'username': ?0 }", exists = true)
+    boolean existsByUsername(String username);
 
     Optional<User> findByEmail(String email);
 }

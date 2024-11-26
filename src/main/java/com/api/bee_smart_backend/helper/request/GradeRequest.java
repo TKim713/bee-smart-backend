@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class GradeRequest {
-    private String grade_name;
+    private String gradeName;
 }

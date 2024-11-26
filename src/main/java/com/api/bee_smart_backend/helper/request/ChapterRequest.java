@@ -10,5 +10,5 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class ChapterRequest {
-    private String chapter_name;
+    private String chapterName;
 }

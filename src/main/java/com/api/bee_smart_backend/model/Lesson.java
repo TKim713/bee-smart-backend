@@ -1,34 +1,37 @@
 package com.api.bee_smart_backend.model;
 
-import com.api.bee_smart_backend.helper.response.LessonResponse;
-import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name="lesson")
+@Document(collection = "lesson")
 public class Lesson {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long lesson_id;
+    private String lessonId;
 
-    @Column(nullable = false)
-    private String lesson_name;
-
+    private String lessonName;
     private String description;
     private String content;
 
-    @ManyToOne
-    @JoinColumn(name = "topic_id")
+    @DBRef
     private Topic topic;
 
-    @Column(nullable = false)
-    private Timestamp create_at;
-    private Timestamp update_at;
-    private Timestamp delete_at;
+    @CreatedDate
+    private Instant createdAt;
+    @LastModifiedDate
+    private Instant updatedAt;
+    @LastModifiedDate
+    private Instant deletedAt;
 }

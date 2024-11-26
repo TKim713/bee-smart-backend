@@ -15,12 +15,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.time.Instant;
 
 @Service
 @Slf4j
@@ -31,18 +35,18 @@ public class TopicServiceImpl implements TopicService {
     @Autowired
     private final TopicRepository topicRepository;
 
-    private LocalDateTime now = LocalDateTime.now();
+    private final Instant now = Instant.now();
     private final MapData mapData;
 
     @Override
-    public TopicResponse createTopicByChapterId(Long chapterId, TopicRequest request) {
+    public TopicResponse createTopicByChapterId(String chapterId, TopicRequest request) {
         Chapter chapter = chapterRepository.findById(chapterId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chương với ID: " + chapterId, HttpStatus.NOT_FOUND));
 
         Topic topic = Topic.builder()
-                .topic_name(request.getTopic_name())
+                .topicName(request.getTopicName())
                 .chapter(chapter)
-                .create_at(Timestamp.valueOf(now))
+                .createdAt(now)
                 .build();
 
         Topic savedTopic = topicRepository.save(topic);
@@ -53,22 +57,21 @@ public class TopicServiceImpl implements TopicService {
     }
 
     @Override
-    public Map<String, Object> getListTopicByChapter(Long chapterId, int limit, int skip) {
+    public Map<String, Object> getListTopicByChapter(String chapterId, int limit, int skip) {
         Chapter chapter = chapterRepository.findById(chapterId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chương với ID: " + chapterId, HttpStatus.NOT_FOUND));
 
-        List<Topic> topics = topicRepository.findByChapter(chapter)
-                .stream()
-                .skip(skip)
-                .limit(limit)
-                .toList();
+        Pageable pageable = PageRequest.of(skip / limit, limit);
+        Page<Topic> topicPage = topicRepository.findByChapter(chapter, pageable);
 
-        List<TopicResponse> topicResponses = topics.stream()
+        List<TopicResponse> topicResponses = topicPage.getContent().stream()
                 .map(topic -> mapData.mapOne(topic, TopicResponse.class))
                 .collect(Collectors.toList());
 
         Map<String, Object> response = new HashMap<>();
-        response.put("total", topicRepository.countByChapter(chapter));
+        long totalTopics = topicRepository.countByChapterIn(List.of(chapter));
+
+        response.put("total", totalTopics);
         response.put("data", topicResponses);
         response.put("limit", limit);
         response.put("skip", skip);
@@ -76,3 +79,4 @@ public class TopicServiceImpl implements TopicService {
         return response;
     }
 }
+

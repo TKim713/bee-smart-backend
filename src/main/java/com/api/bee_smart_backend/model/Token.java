@@ -1,40 +1,42 @@
 package com.api.bee_smart_backend.model;
 
 import com.api.bee_smart_backend.helper.enums.TokenType;
-import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Entity
-@Table(name="token")
+@Document(collection = "token")
 public class Token {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long token_id;
+    private String tokenId;
 
     private String accessToken;
     private String refreshToken;
 
-    @Enumerated(EnumType.STRING)
     private TokenType tokenType;
 
-    private boolean expired; // Xác định token có hết hạn không
-    private boolean revoked; // Xác định token có bị thu hồi không
+    private boolean expired;
+    private boolean revoked;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @DBRef
     private User user;
 
-    @Column(nullable = false)
-    private Timestamp create_at;
-    private Timestamp update_at;
-    private Timestamp delete_at;
+    @CreatedDate
+    private Instant createdAt;
+    @LastModifiedDate
+    private Instant updatedAt;
+    @LastModifiedDate
+    private Instant deletedAt;
 }

@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class GradeResponse {
-    private long grade_id;
-    private String grade_name;
+    private String gradeId;
+    private String gradeName;
 }

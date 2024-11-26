@@ -1,9 +1,10 @@
 package com.api.bee_smart_backend.repository;
 
 import com.api.bee_smart_backend.model.Token;
-import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.mongodb.repository.MongoRepository;
 
-public interface TokenRepository extends JpaRepository<Token, Long> {
+public interface TokenRepository extends MongoRepository<Token, String> {
     Token findByAccessToken(String accessToken);
     Token findByRefreshToken(String refreshToken);
 }
+

@@ -19,7 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +28,7 @@ import java.util.UUID;
 @Slf4j
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
+
     @Autowired
     private final UserRepository userRepository;
     @Autowired
@@ -39,7 +40,7 @@ public class UserServiceImpl implements UserService {
     private BCryptPasswordEncoder passwordEncoder;
     private final MapData mapData;
 
-    private LocalDateTime now = LocalDateTime.now();
+    private final Instant now = Instant.now();
 
     @Override
     public CreateUserResponse createUser(CreateUserRequest userRequest) {
@@ -64,7 +65,8 @@ public class UserServiceImpl implements UserService {
                 .email(userRequest.getEmail())
                 .password(password)
                 .role(Role.valueOf(userRequest.getRole()))
-                .create_at(Timestamp.valueOf(now))
+                .enabled(false)  // Default to false until verified
+                .createdAt(now)
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -74,12 +76,13 @@ public class UserServiceImpl implements UserService {
 
         Token token = Token.builder()
                 .accessToken(tokenStr)
-                .tokenType(TokenType.BEARER)
+                .tokenType(TokenType.valueOf(TokenType.BEARER.name()))
                 .expired(false)
                 .revoked(false)
                 .user(savedUser)
-                .create_at(Timestamp.valueOf(now))
+                .createdAt(now)
                 .build();
+
         Token savedToken = tokenRepository.save(token);
 
         // Gửi email xác thực với tên người dùng
@@ -89,7 +92,6 @@ public class UserServiceImpl implements UserService {
         response.setToken(savedToken.getAccessToken());
         return response;
     }
-
 
     // Method xác thực email
     public String verifyEmail(String tokenStr) {
@@ -101,8 +103,8 @@ public class UserServiceImpl implements UserService {
 
             token.setExpired(true); // Đánh dấu token đã hết hạn sau khi xác thực
             token.setRevoked(true);
-            token.setUpdate_at(Timestamp.valueOf(now));
-            token.setDelete_at(Timestamp.valueOf(now));
+            token.setUpdatedAt(now);
+            token.setDeletedAt(now);
             tokenRepository.save(token);
 
             return "Xác thực email thành công!";

@@ -34,7 +34,7 @@ public class GradeController {
 
     @PostMapping("/{gradeId}/chapters")
     public ResponseEntity<ResponseObject<ChapterResponse>> createChapterByGradeId(
-            @PathVariable Long gradeId,
+            @PathVariable String gradeId,
             @RequestBody ChapterRequest request) {
         try {
             ChapterResponse chapterResponse = chapterService.createChapterByGradeId(gradeId, request);
@@ -65,14 +65,32 @@ public class GradeController {
     }
 
     @GetMapping("/{gradeId}/lessons")
-    public ResponseEntity<List<LessonResponse>> getLessonsByGrade(@PathVariable Long gradeId) {
-        List<LessonResponse> lessonResponses = gradeService.getLessonsByGrade(gradeId);
-        return ResponseEntity.ok(lessonResponses);
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getLessonsByGrade(
+            @PathVariable String gradeId,
+            @RequestParam(defaultValue = "5") int limit,
+            @RequestParam(defaultValue = "0") int skip) {
+
+        try {
+            Map<String, Object> response = gradeService.getLessonsByGrade(gradeId, limit, skip);
+
+            if (!response.isEmpty()) {
+                return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Lessons fetched successfully", response));
+            }
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new ResponseObject<>(HttpStatus.NOT_FOUND.value(), "No lessons found for this grade", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error fetching lessons: " + e.getMessage(), null));
+        }
     }
 
     @GetMapping("/{gradeId}/chapters")
     public ResponseEntity<Map<String, Object>> getChaptersByGrade(
-            @PathVariable Long gradeId,
+            @PathVariable String gradeId,
             @RequestParam(defaultValue = "5") int limit,
             @RequestParam(defaultValue = "0") int skip) {
 
