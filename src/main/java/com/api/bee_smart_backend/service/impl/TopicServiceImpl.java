@@ -3,6 +3,7 @@ package com.api.bee_smart_backend.service.impl;
 import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
+import com.api.bee_smart_backend.helper.response.TopicLessonResponse;
 import com.api.bee_smart_backend.helper.response.TopicResponse;
 import com.api.bee_smart_backend.helper.request.TopicRequest;
 import com.api.bee_smart_backend.model.Grade;
@@ -49,13 +50,12 @@ public class TopicServiceImpl implements TopicService {
         Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemester(gradeId, semester, pageable);
 
         // Map the topics to TopicResponse
-        List<TopicResponse> topics = topicPage.getContent().stream()
-                .map(topic -> TopicResponse.builder()
+        List<TopicLessonResponse> topics = topicPage.getContent().stream()
+                .map(topic -> TopicLessonResponse.builder()
                         .topicId(topic.getTopicId())
                         .topicName(topic.getTopicName())
+                        .topicNumber(topic.getTopicNumber())
                         .chapter(topic.getChapter())
-                        .gradeName(topic.getGrade() != null ? topic.getGrade().getGradeName() : null)
-                        .semester(topic.getSemester())
                         .lessons(topic.getLessons().stream()
                                 .map(lesson -> LessonResponse.builder()
                                         .lessonId(lesson.getLessonId())
@@ -84,6 +84,7 @@ public class TopicServiceImpl implements TopicService {
 
         Topic topic = Topic.builder()
                 .topicName(request.getTopicName())
+                .topicNumber(request.getTopicNumber())
                 .chapter(request.getChapter())
                 .grade(grade)
                 .semester(request.getSemester())

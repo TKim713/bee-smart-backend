@@ -11,12 +11,10 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 @Data
-public class TopicResponse {
+public class TopicLessonResponse {
     private String topicId;
     private String topicName;
     private int topicNumber;
     private String chapter;
-    private String gradeName;
-    private String semester;
     private List<LessonResponse> lessons;
 }
