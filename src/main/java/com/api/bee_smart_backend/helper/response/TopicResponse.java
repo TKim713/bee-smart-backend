@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -12,4 +14,8 @@ import lombok.NoArgsConstructor;
 public class TopicResponse {
     private String topicId;
     private String topicName;
+    private int chapter;
+    private String gradeName;
+    private String semester;
+    private List<LessonResponse> lessons;
 }

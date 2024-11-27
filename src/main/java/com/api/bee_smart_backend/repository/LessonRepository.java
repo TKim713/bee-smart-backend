@@ -14,14 +14,12 @@ public interface LessonRepository extends MongoRepository<Lesson, String> {
 
     Page<Lesson> findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String lessonName, String description, Pageable pageable);
 
-    long countByTopic(Topic topic);
-
-    @Query("{ 'lessonName' : { $regex: ?0, $options: 'i' } }")
-    Page<Lesson> findByNameContainingIgnoreCase(String search, Pageable pageable);
-
     @Query(value = "{ 'topic' : ?0 }", sort = "{ '_id' : 1 }")
     Lesson findFirstByTopicOrderByIdAsc(Topic topic);
 
     List<Lesson> findByTopic(Topic topic);
+
+    @Query("{ 'topic' : ?0, '$or' : [ { 'lessonName' : { '$regex' : ?1, '$options' : 'i' } }, { 'description' : { '$regex' : ?1, '$options' : 'i' } } ] }")
+    Page<Lesson> findByTopicAndSearch(Topic topic, String search, Pageable pageable);
 }
 

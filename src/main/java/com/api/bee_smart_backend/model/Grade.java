@@ -24,7 +24,7 @@ public class Grade {
 
     @DBRef
     @ToString.Exclude
-    private List<Chapter> chapters = new ArrayList<>();
+    private List<Topic> topics = new ArrayList<>();
 
     @CreatedDate
     private Instant createdAt;
@@ -33,7 +33,7 @@ public class Grade {
     @LastModifiedDate
     private Instant deletedAt;
 
-    public void addChapter(Chapter chapter) {
-        chapters.add(chapter);
+    public void addChapter(Topic topic) {
+        topics.add(topic);
     }
 }

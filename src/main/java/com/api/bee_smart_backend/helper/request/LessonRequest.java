@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @Data
 public class LessonRequest {
     private String lessonName;
+    private int lessonNumber;
     private String description;
     private String content;
 }

@@ -11,4 +11,6 @@ import lombok.NoArgsConstructor;
 @Data
 public class TopicRequest {
     private String topicName;
+    private int chapter;
+    private String semester;
 }

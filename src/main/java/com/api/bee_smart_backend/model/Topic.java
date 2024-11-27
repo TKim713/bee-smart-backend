@@ -19,11 +19,12 @@ import java.util.List;
 public class Topic {
     @Id
     private String topicId;
-
     private String topicName;
+    private int chapter;
 
     @DBRef
-    private Chapter chapter;
+    private Grade grade;
+    private String semester;
 
     @DBRef
     @ToString.Exclude

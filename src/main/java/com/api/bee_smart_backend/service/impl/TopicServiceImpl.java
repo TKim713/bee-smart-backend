@@ -2,11 +2,12 @@ package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
+import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.helper.response.TopicResponse;
 import com.api.bee_smart_backend.helper.request.TopicRequest;
-import com.api.bee_smart_backend.model.Chapter;
+import com.api.bee_smart_backend.model.Grade;
 import com.api.bee_smart_backend.model.Topic;
-import com.api.bee_smart_backend.repository.ChapterRepository;
+import com.api.bee_smart_backend.repository.GradeRepository;
 import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.TopicService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -31,52 +31,70 @@ import java.time.Instant;
 @RequiredArgsConstructor
 public class TopicServiceImpl implements TopicService {
     @Autowired
-    private final ChapterRepository chapterRepository;
+    private final GradeRepository gradeRepository;
     @Autowired
     private final TopicRepository topicRepository;
 
-    private final Instant now = Instant.now();
     private final MapData mapData;
+    private final Instant now = Instant.now();
 
     @Override
-    public TopicResponse createTopicByChapterId(String chapterId, TopicRequest request) {
-        Chapter chapter = chapterRepository.findById(chapterId)
-                .orElseThrow(() -> new CustomException("Không tìm thấy chương với ID: " + chapterId, HttpStatus.NOT_FOUND));
+    public Map<String, Object> getTopicsByGradeAndSemester(String gradeId, String semester, String page, String size) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+
+        // Retrieve topics filtered by grade and semester
+        Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemester(gradeId, semester, pageable);
+
+        // Map the topics to TopicResponse
+        List<TopicResponse> topics = topicPage.getContent().stream()
+                .map(topic -> TopicResponse.builder()
+                        .topicId(topic.getTopicId())
+                        .topicName(topic.getTopicName())
+                        .chapter(topic.getChapter())
+                        .gradeName(topic.getGrade() != null ? topic.getGrade().getGradeName() : null)
+                        .semester(topic.getSemester())
+                        .lessons(topic.getLessons().stream()
+                                .map(lesson -> LessonResponse.builder()
+                                        .lessonId(lesson.getLessonId())
+                                        .lessonName(lesson.getLessonName())
+                                        .lessonNumber(lesson.getLessonNumber())
+                                        .description(lesson.getDescription())
+                                        .content(lesson.getContent())
+                                        .build())
+                                .toList())
+                        .build())
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalItems", topicPage.getTotalElements());
+        response.put("totalPages", topicPage.getTotalPages());
+        response.put("currentPage", topicPage.getNumber());
+        response.put("topics", topics);
+
+        return response;
+    }
+
+    @Override
+    public TopicResponse createTopicByGradeId(String gradeId, TopicRequest request) {
+        Grade grade = gradeRepository.findById(gradeId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy khối với ID: " + gradeId, HttpStatus.NOT_FOUND));
 
         Topic topic = Topic.builder()
                 .topicName(request.getTopicName())
-                .chapter(chapter)
+                .chapter(request.getChapter())
+                .grade(grade)
+                .semester(request.getSemester())
                 .createdAt(now)
                 .build();
 
         Topic savedTopic = topicRepository.save(topic);
-        chapter.addTopic(savedTopic);
-        chapterRepository.save(chapter);
+        grade.getTopics().add(savedTopic);
+        gradeRepository.save(grade);
 
         return mapData.mapOne(savedTopic, TopicResponse.class);
-    }
-
-    @Override
-    public Map<String, Object> getListTopicByChapter(String chapterId, int limit, int skip) {
-        Chapter chapter = chapterRepository.findById(chapterId)
-                .orElseThrow(() -> new CustomException("Không tìm thấy chương với ID: " + chapterId, HttpStatus.NOT_FOUND));
-
-        Pageable pageable = PageRequest.of(skip / limit, limit);
-        Page<Topic> topicPage = topicRepository.findByChapter(chapter, pageable);
-
-        List<TopicResponse> topicResponses = topicPage.getContent().stream()
-                .map(topic -> mapData.mapOne(topic, TopicResponse.class))
-                .collect(Collectors.toList());
-
-        Map<String, Object> response = new HashMap<>();
-        long totalTopics = topicRepository.countByChapterIn(List.of(chapter));
-
-        response.put("total", totalTopics);
-        response.put("data", topicResponses);
-        response.put("limit", limit);
-        response.put("skip", skip);
-
-        return response;
     }
 }
 

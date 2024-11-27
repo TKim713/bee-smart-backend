@@ -24,7 +24,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -57,6 +56,7 @@ public class LessonServiceImpl implements LessonService {
                 .map(lesson -> LessonResponse.builder()
                         .lessonId(lesson.getLessonId())
                         .lessonName(lesson.getLessonName())
+                        .lessonNumber(lesson.getLessonNumber())
                         .description(lesson.getDescription())
                         .content(lesson.getContent())
                         .build())
@@ -72,24 +72,35 @@ public class LessonServiceImpl implements LessonService {
     }
 
     @Override
-    public Map<String, Object> getListLessonByTopic(String topicId, int limit, int skip) {
+    public Map<String, Object> getListLessonByTopic(String topicId, String page, String size, String search) {
+        // Parse page and size with default values
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+
+        // Find the topic by ID
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
-        long total = lessonRepository.countByTopic(topic);
+        Page<Lesson> lessonPage;
 
-        Pageable pageable = PageRequest.of(skip / limit, limit);
-        Page<Lesson> lessonPage = lessonRepository.findByTopic(topic, pageable);
+        // Check if search is empty or not
+        if (search == null || search.isBlank()) {
+            lessonPage = lessonRepository.findByTopic(topic, pageable);
+        } else {
+            lessonPage = lessonRepository.findByTopicAndSearch(topic, search, pageable);
+        }
 
-        List<LessonResponse> lessons = lessonPage.getContent().stream()
+        List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
                 .map(lesson -> mapData.mapOne(lesson, LessonResponse.class))
-                .collect(Collectors.toList());
+                .toList();
 
         Map<String, Object> response = new HashMap<>();
-        response.put("total", total);
-        response.put("data", lessons);
-        response.put("limit", limit);
-        response.put("skip", skip);
+        response.put("totalItems", lessonPage.getTotalElements());
+        response.put("totalPages", lessonPage.getTotalPages());
+        response.put("currentPage", lessonPage.getNumber());
+        response.put("lessons", lessonResponses);
 
         return response;
     }
@@ -108,6 +119,7 @@ public class LessonServiceImpl implements LessonService {
 
         Lesson lesson = Lesson.builder()
                 .lessonName(request.getLessonName())
+                .lessonNumber(request.getLessonNumber())
                 .description(request.getDescription())
                 .content(request.getContent())
                 .topic(topic)
@@ -119,6 +131,53 @@ public class LessonServiceImpl implements LessonService {
         topicRepository.save(topic);
 
         return mapData.mapOne(savedLesson, LessonResponse.class);
+    }
+
+    @Override
+    public LessonResponse updateLessonByTopicId(String topicId, String lessonId, LessonRequest request) {
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
+
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
+
+        // Check if the lesson name is being updated to one that already exists within the same topic
+        if (!lesson.getLessonName().equalsIgnoreCase(request.getLessonName())) {
+            boolean lessonExists = topic.getLessons().stream()
+                    .anyMatch(existingLesson -> existingLesson.getLessonName().equalsIgnoreCase(request.getLessonName()));
+
+            if (lessonExists) {
+                throw new CustomException("Bài học '" + request.getLessonName() + "' đã tồn tại trong chủ đề này.", HttpStatus.CONFLICT);
+            }
+        }
+
+        // Update lesson details
+        lesson.setLessonName(request.getLessonName());
+        lesson.setLessonNumber(request.getLessonNumber());
+        lesson.setDescription(request.getDescription());
+        lesson.setContent(request.getContent());
+        lesson.setUpdatedAt(now);
+
+        // Save the updated lesson
+        Lesson updatedLesson = lessonRepository.save(lesson);
+
+        return mapData.mapOne(updatedLesson, LessonResponse.class);
+    }
+
+    @Override
+    public void deleteLessonByTopicId(String topicId, String lessonId) {
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
+
+        Lesson lesson = lessonRepository.findById(lessonId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
+
+        // Remove the lesson from the topic's list of lessons
+        topic.getLessons().remove(lesson);
+        topicRepository.save(topic);  // Save the topic after removing the lesson
+
+        // Delete the lesson from the database
+        lessonRepository.delete(lesson);
     }
 
     @Override

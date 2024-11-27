@@ -66,4 +66,39 @@ public class LessonController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi tạo bài học: " + e.getMessage(), null));
         }
     }
+
+    @PutMapping("/{lessonId}/topic/{topicId}")
+    public ResponseEntity<ResponseObject<LessonResponse>> updateLessonByTopicId(
+            @PathVariable String topicId,
+            @PathVariable String lessonId,
+            @RequestBody LessonRequest request) {
+        try {
+            LessonResponse lessonResponse = lessonService.updateLessonByTopicId(topicId, lessonId, request);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Bài học được cập nhật thành công!", lessonResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi cập nhật bài học: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping("/{lessonId}/topic/{topicId}")
+    public ResponseEntity<ResponseObject<Void>> deleteLessonByTopicId(
+            @PathVariable String topicId,
+            @PathVariable String lessonId) {
+        try {
+            lessonService.deleteLessonByTopicId(topicId, lessonId);
+            return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                    .body(new ResponseObject<>(HttpStatus.NO_CONTENT.value(), "Bài học đã được xóa thành công", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa bài học: " + e.getMessage(), null));
+        }
+    }
 }

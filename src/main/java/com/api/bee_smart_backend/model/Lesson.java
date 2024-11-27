@@ -20,8 +20,9 @@ import java.time.Instant;
 public class Lesson {
     @Id
     private String lessonId;
-
     private String lessonName;
+    private int lessonNumber;
+
     private String description;
     private String content;
 
