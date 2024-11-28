@@ -12,4 +12,8 @@ public interface TopicService {
     Map<String, Object> getTopicsByGradeAndSemester(String gradeId, String semester, String page, String size);
 
     TopicResponse createTopicByGradeId(String gradeId, TopicRequest request);
+
+    TopicResponse updateTopicByGradeId(String gradeId, String topicId, TopicRequest request);
+
+    TopicResponse getTopicById(String topicId);
 }

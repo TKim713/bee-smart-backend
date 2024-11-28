@@ -43,6 +43,24 @@ public class TopicController {
         }
     }
 
+    @PutMapping("/{topicId}/grade/{gradeId}")
+    public ResponseEntity<ResponseObject<TopicResponse>> updateTopicByGradeId(
+            @PathVariable String gradeId,
+            @PathVariable String topicId,
+            @RequestBody TopicRequest request) {
+        try {
+            TopicResponse topicResponse = topicService.updateTopicByGradeId(gradeId, topicId, request);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Chủ đề được cập nhật thành công!", topicResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi cập nhật chủ đề: " + e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/grade/{gradeId}/semester")
     public ResponseEntity<ResponseObject<Map<String, Object>>> getTopicsByGradeAndSemester(
             @PathVariable String gradeId,
@@ -74,6 +92,24 @@ public class TopicController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{topicId}")
+    public ResponseEntity<ResponseObject<TopicResponse>> getTopicById(@PathVariable String topicId) {
+        try {
+            TopicResponse topicResponse = topicService.getTopicById(topicId);
+            return ResponseEntity.ok(new ResponseObject<>(
+                    HttpStatus.OK.value(),
+                    "Lấy chủ đề thành công",
+                    topicResponse
+            ));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy chủ đề: " + e.getMessage(), null));
         }
     }
 }

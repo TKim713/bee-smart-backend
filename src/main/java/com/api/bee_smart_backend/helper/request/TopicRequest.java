@@ -12,6 +12,5 @@ import lombok.NoArgsConstructor;
 public class TopicRequest {
     private String topicName;
     private int topicNumber;
-    private String chapter;
     private String semester;
 }

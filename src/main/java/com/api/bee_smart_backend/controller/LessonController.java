@@ -2,6 +2,7 @@ package com.api.bee_smart_backend.controller;
 
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.LessonRequest;
+import com.api.bee_smart_backend.helper.response.LessonDetailResponse;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.service.LessonService;
@@ -35,10 +36,10 @@ public class LessonController {
     }
 
     @GetMapping("/{lessonId}")
-    public ResponseEntity<ResponseObject<LessonResponse>> getLessonById(@PathVariable String lessonId) {
+    public ResponseEntity<ResponseObject<LessonDetailResponse>> getLessonById(@PathVariable String lessonId) {
         try {
             // Retrieve lesson with access logic
-            LessonResponse lessonResponse = lessonService.getLessonById(lessonId);
+            LessonDetailResponse lessonResponse = lessonService.getLessonById(lessonId);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lesson retrieved successfully", lessonResponse));
         } catch (CustomException e) {
@@ -51,11 +52,11 @@ public class LessonController {
     }
 
     @PostMapping("/topic/{topicId}")
-    public ResponseEntity<ResponseObject<LessonResponse>> createLessonByTopicId(
+    public ResponseEntity<ResponseObject<LessonDetailResponse>> createLessonByTopicId(
             @PathVariable String topicId,
             @RequestBody LessonRequest request) {
         try {
-            LessonResponse lessonResponse = lessonService.createLessonByTopicId(topicId, request);
+            LessonDetailResponse lessonResponse = lessonService.createLessonByTopicId(topicId, request);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ResponseObject<>(HttpStatus.CREATED.value(), "Bài học được tạo thành công!", lessonResponse));
         } catch (CustomException e) {
@@ -68,12 +69,12 @@ public class LessonController {
     }
 
     @PutMapping("/{lessonId}/topic/{topicId}")
-    public ResponseEntity<ResponseObject<LessonResponse>> updateLessonByTopicId(
+    public ResponseEntity<ResponseObject<LessonDetailResponse>> updateLessonByTopicId(
             @PathVariable String topicId,
             @PathVariable String lessonId,
             @RequestBody LessonRequest request) {
         try {
-            LessonResponse lessonResponse = lessonService.updateLessonByTopicId(topicId, lessonId, request);
+            LessonDetailResponse lessonResponse = lessonService.updateLessonByTopicId(topicId, lessonId, request);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Bài học được cập nhật thành công!", lessonResponse));
         } catch (CustomException e) {

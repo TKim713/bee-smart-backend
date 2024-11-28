@@ -14,6 +14,7 @@ import com.api.bee_smart_backend.service.TopicService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -44,26 +45,37 @@ public class TopicServiceImpl implements TopicService {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "topicNumber"));
 
-        // Retrieve topics filtered by grade and semester
         Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemester(gradeId, semester, pageable);
 
-        // Map the topics to TopicResponse
+        String chapter = switch (semester) {
+            case "Học kì 1" -> "I";
+            case "Học kì 2" -> "II";
+            default -> "Unknown"; // Default value if semester does not match
+        };
+
         List<TopicLessonResponse> topics = topicPage.getContent().stream()
                 .map(topic -> TopicLessonResponse.builder()
                         .topicId(topic.getTopicId())
                         .topicName(topic.getTopicName())
                         .topicNumber(topic.getTopicNumber())
-                        .chapter(topic.getChapter())
                         .lessons(topic.getLessons().stream()
-                                .map(lesson -> LessonResponse.builder()
-                                        .lessonId(lesson.getLessonId())
-                                        .lessonName(lesson.getLessonName())
-                                        .lessonNumber(lesson.getLessonNumber())
-                                        .description(lesson.getDescription())
-                                        .content(lesson.getContent())
-                                        .build())
+                                .map(lesson -> {
+                                    String formattedLessonName = String.format(
+                                            "%s.%d.%d. %s",
+                                            chapter,
+                                            topic.getTopicNumber(),
+                                            lesson.getLessonNumber(),
+                                            lesson.getLessonName()
+                                    );
+
+                                    return LessonResponse.builder()
+                                            .lessonId(lesson.getLessonId())
+                                            .lessonName(formattedLessonName)
+                                            .lessonNumber(lesson.getLessonNumber())
+                                            .build();
+                                })
                                 .toList())
                         .build())
                 .toList();
@@ -85,7 +97,6 @@ public class TopicServiceImpl implements TopicService {
         Topic topic = Topic.builder()
                 .topicName(request.getTopicName())
                 .topicNumber(request.getTopicNumber())
-                .chapter(request.getChapter())
                 .grade(grade)
                 .semester(request.getSemester())
                 .createdAt(now)
@@ -96,6 +107,36 @@ public class TopicServiceImpl implements TopicService {
         gradeRepository.save(grade);
 
         return mapData.mapOne(savedTopic, TopicResponse.class);
+    }
+
+    @Override
+    public TopicResponse updateTopicByGradeId(String gradeId, String topicId, TopicRequest request) {
+        Grade grade = gradeRepository.findById(gradeId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy khối với ID: " + gradeId, HttpStatus.NOT_FOUND));
+
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
+
+        if (!topic.getGrade().getGradeId().equals(gradeId)) {
+            throw new CustomException("Chủ đề không thuộc về khối với ID: " + gradeId, HttpStatus.BAD_REQUEST);
+        }
+
+        topic.setTopicName(request.getTopicName());
+        topic.setTopicNumber(request.getTopicNumber());
+        topic.setSemester(request.getSemester());
+        topic.setUpdatedAt(now);
+
+        Topic updatedTopic = topicRepository.save(topic);
+
+        return mapData.mapOne(updatedTopic, TopicResponse.class);
+    }
+
+    @Override
+    public TopicResponse getTopicById(String topicId) {
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
+
+        return mapData.mapOne(topic, TopicResponse.class);
     }
 }
 

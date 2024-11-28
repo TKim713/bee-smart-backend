@@ -3,6 +3,7 @@ package com.api.bee_smart_backend.service.impl;
 import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.LessonRequest;
+import com.api.bee_smart_backend.helper.response.LessonDetailResponse;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Topic;
@@ -52,8 +53,8 @@ public class LessonServiceImpl implements LessonService {
             lessonPage = lessonRepository.findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search, pageable);
         }
 
-        List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
-                .map(lesson -> LessonResponse.builder()
+        List<LessonDetailResponse> lessonResponses = lessonPage.getContent().stream()
+                .map(lesson -> LessonDetailResponse.builder()
                         .lessonId(lesson.getLessonId())
                         .lessonName(lesson.getLessonName())
                         .lessonNumber(lesson.getLessonNumber())
@@ -92,8 +93,8 @@ public class LessonServiceImpl implements LessonService {
             lessonPage = lessonRepository.findByTopicAndSearch(topic, search, pageable);
         }
 
-        List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
-                .map(lesson -> mapData.mapOne(lesson, LessonResponse.class))
+        List<LessonDetailResponse> lessonResponses = lessonPage.getContent().stream()
+                .map(lesson -> mapData.mapOne(lesson, LessonDetailResponse.class))
                 .toList();
 
         Map<String, Object> response = new HashMap<>();
@@ -106,7 +107,7 @@ public class LessonServiceImpl implements LessonService {
     }
 
     @Override
-    public LessonResponse createLessonByTopicId(String topicId, LessonRequest request) {
+    public LessonDetailResponse createLessonByTopicId(String topicId, LessonRequest request) {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
@@ -130,11 +131,11 @@ public class LessonServiceImpl implements LessonService {
         topic.addLesson(savedLesson);
         topicRepository.save(topic);
 
-        return mapData.mapOne(savedLesson, LessonResponse.class);
+        return mapData.mapOne(savedLesson, LessonDetailResponse.class);
     }
 
     @Override
-    public LessonResponse updateLessonByTopicId(String topicId, String lessonId, LessonRequest request) {
+    public LessonDetailResponse updateLessonByTopicId(String topicId, String lessonId, LessonRequest request) {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
@@ -161,7 +162,7 @@ public class LessonServiceImpl implements LessonService {
         // Save the updated lesson
         Lesson updatedLesson = lessonRepository.save(lesson);
 
-        return mapData.mapOne(updatedLesson, LessonResponse.class);
+        return mapData.mapOne(updatedLesson, LessonDetailResponse.class);
     }
 
     @Override
@@ -172,31 +173,22 @@ public class LessonServiceImpl implements LessonService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
 
-        // Remove the lesson from the topic's list of lessons
         topic.getLessons().remove(lesson);
-        topicRepository.save(topic);  // Save the topic after removing the lesson
+        topicRepository.save(topic);
 
-        // Delete the lesson from the database
         lessonRepository.delete(lesson);
     }
 
     @Override
-    public LessonResponse getLessonById(String lessonId) {
+    public LessonDetailResponse getLessonById(String lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Lesson not found with ID: " + lessonId, HttpStatus.NOT_FOUND));
 
-        if (isFirstLessonOfFirstTopic(lesson) || isAuthenticated()) {
-            return mapData.mapOne(lesson, LessonResponse.class);
+        if (lesson.getLessonNumber() == 1 || isAuthenticated()) {
+            return mapData.mapOne(lesson, LessonDetailResponse.class);
         } else {
             throw new CustomException("Unauthorized access. Please log in to continue learning.", HttpStatus.UNAUTHORIZED);
         }
-    }
-
-    private boolean isFirstLessonOfFirstTopic(Lesson lesson) {
-        Topic firstTopic = topicRepository.findFirstByOrderByIdAsc();
-        Lesson firstLesson = lessonRepository.findFirstByTopicOrderByIdAsc(firstTopic);
-
-        return lesson.getLessonId().equals(firstLesson.getLessonId());
     }
 
     @Override

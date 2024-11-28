@@ -5,15 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Data
-public class TopicLessonResponse {
-    private String topicId;
-    private String topicName;
-    private int topicNumber;
-    private List<LessonResponse> lessons;
+public class LessonDetailResponse {
+    private String lessonId;
+    private String lessonName;
+    private int lessonNumber;
+    private String description;
+    private String content;
 }

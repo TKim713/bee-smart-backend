@@ -21,7 +21,6 @@ public class Topic {
     private String topicId;
     private String topicName;
     private int topicNumber;
-    private String chapter;
 
     @DBRef
     private Grade grade;
