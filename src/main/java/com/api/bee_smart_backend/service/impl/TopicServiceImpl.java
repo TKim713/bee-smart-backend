@@ -9,6 +9,7 @@ import com.api.bee_smart_backend.helper.request.TopicRequest;
 import com.api.bee_smart_backend.model.Grade;
 import com.api.bee_smart_backend.model.Topic;
 import com.api.bee_smart_backend.repository.GradeRepository;
+import com.api.bee_smart_backend.repository.LessonRepository;
 import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.TopicService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,8 @@ public class TopicServiceImpl implements TopicService {
     private final GradeRepository gradeRepository;
     @Autowired
     private final TopicRepository topicRepository;
+    @Autowired
+    private final LessonRepository lessonRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
@@ -112,7 +115,7 @@ public class TopicServiceImpl implements TopicService {
     }
 
     @Override
-    public TopicResponse updateTopic(String topicId, TopicRequest request) {
+    public TopicResponse updateTopicById(String topicId, TopicRequest request) {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
@@ -132,6 +135,43 @@ public class TopicServiceImpl implements TopicService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
         return mapData.mapOne(topic, TopicResponse.class);
+    }
+
+    @Override
+    public void deleteTopicById(String topicId) {
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new CustomException("Chủ đề không tồn tại", HttpStatus.NOT_FOUND));
+
+        lessonRepository.deleteAll(topic.getLessons());
+        Grade grade = topic.getGrade();
+
+        if (grade != null) {
+            grade.getTopics().removeIf(existingTopic -> existingTopic.getTopicId().equals(topicId));
+            gradeRepository.save(grade);
+        }
+        topicRepository.delete(topic);
+    }
+
+    @Override
+    public void deleteTopicsByIds(List<String> topicIds) {
+        List<Topic> topics = topicRepository.findAllById(topicIds);
+
+        if (topics.size() != topicIds.size()) {
+            throw new CustomException("Một số chủ đề không tìm thấy", HttpStatus.NOT_FOUND);
+        }
+
+        for (Topic topic : topics) {
+            lessonRepository.deleteAll(topic.getLessons());
+
+            Grade grade = topic.getGrade();
+
+            if (grade != null) {
+                grade.getTopics().removeIf(existingTopic -> topicIds.contains(existingTopic.getTopicId()));
+                gradeRepository.save(grade);
+            }
+
+            topicRepository.delete(topic);
+        }
     }
 }
 

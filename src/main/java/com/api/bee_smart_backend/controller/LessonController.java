@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -68,11 +69,11 @@ public class LessonController {
     }
 
     @PutMapping("/{lessonId}")
-    public ResponseEntity<ResponseObject<LessonResponse>> updateLesson(
+    public ResponseEntity<ResponseObject<LessonResponse>> updateLessonById(
             @PathVariable String lessonId,
             @RequestBody LessonRequest request) {
         try {
-            LessonResponse lessonResponse = lessonService.updateLesson(lessonId, request);
+            LessonResponse lessonResponse = lessonService.updateLessonById(lessonId, request);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Bài học được cập nhật thành công!", lessonResponse));
         } catch (CustomException e) {
@@ -85,12 +86,27 @@ public class LessonController {
     }
 
     @DeleteMapping("/{lessonId}")
-    public ResponseEntity<ResponseObject<Void>> deleteLesson(
+    public ResponseEntity<ResponseObject<Object>> deleteLessonById(
             @PathVariable String lessonId) {
         try {
-            lessonService.deleteLesson(lessonId);
-            return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                    .body(new ResponseObject<>(HttpStatus.NO_CONTENT.value(), "Bài học đã được xóa thành công", null));
+            lessonService.deleteLessonById(lessonId);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Bài học đã được xóa thành công", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa bài học: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping
+    public ResponseEntity<ResponseObject<Object>> deleteLessons(@RequestBody List<String> lessonIds) {
+        try {
+            lessonService.deleteLessonsByIds(lessonIds);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Các bài học đã được xóa thành công", null));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));

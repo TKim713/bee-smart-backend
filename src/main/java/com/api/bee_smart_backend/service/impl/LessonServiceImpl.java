@@ -134,7 +134,7 @@ public class LessonServiceImpl implements LessonService {
     }
 
     @Override
-    public LessonResponse updateLesson(String lessonId, LessonRequest request) {
+    public LessonResponse updateLessonById(String lessonId, LessonRequest request) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
 
@@ -152,16 +152,38 @@ public class LessonServiceImpl implements LessonService {
     }
 
     @Override
-    public void deleteLesson(String lessonId) {
+    public void deleteLessonById(String lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
 
         Topic topic = lesson.getTopic();
 
-        topic.getLessons().remove(lesson);
-        topicRepository.save(topic);
+        if (topic != null) {
+            topic.getLessons().removeIf(existingLesson -> existingLesson.getLessonId().equals(lessonId));
+            topicRepository.save(topic);
+        }
 
         lessonRepository.delete(lesson);
+    }
+
+    @Override
+    public void deleteLessonsByIds(List<String> lessonIds) {
+        List<Lesson> lessons = lessonRepository.findAllById(lessonIds);
+
+        if (lessons.size() != lessonIds.size()) {
+            throw new CustomException("Một số bài học không tìm thấy", HttpStatus.NOT_FOUND);
+        }
+
+        for (Lesson lesson : lessons) {
+            Topic topic = lesson.getTopic();
+
+            if (topic != null) {
+                topic.getLessons().removeIf(existingLesson -> lessonIds.contains(existingLesson.getLessonId()));
+                topicRepository.save(topic);
+            }
+        }
+
+        lessonRepository.deleteAll(lessons);
     }
 
     @Override

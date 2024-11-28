@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -45,7 +46,7 @@ public class TopicController {
             @PathVariable String topicId,
             @RequestBody TopicRequest request) {
         try {
-            TopicResponse topicResponse = topicService.updateTopic(topicId, request);
+            TopicResponse topicResponse = topicService.updateTopicById(topicId, request);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Chủ đề được cập nhật thành công!", topicResponse));
         } catch (CustomException e) {
@@ -54,6 +55,21 @@ public class TopicController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi cập nhật chủ đề: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping("/{topicId}")
+    public ResponseEntity<ResponseObject<Object>> deleteTopicById(@PathVariable String topicId) {
+        try {
+            topicService.deleteTopicById(topicId);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Chủ đề đã được xóa thành công", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa chủ đề: " + e.getMessage(), null));
         }
     }
 
@@ -106,6 +122,21 @@ public class TopicController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy chủ đề: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping
+    public ResponseEntity<ResponseObject<Object>> deleteTopics(@RequestBody List<String> topicIds) {
+        try {
+            topicService.deleteTopicsByIds(topicIds);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Các chủ đề đã được xóa thành công", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa chủ đề: " + e.getMessage(), null));
         }
     }
 }
