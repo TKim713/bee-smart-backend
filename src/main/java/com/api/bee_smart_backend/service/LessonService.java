@@ -1,7 +1,7 @@
 package com.api.bee_smart_backend.service;
 
 import com.api.bee_smart_backend.helper.request.LessonRequest;
-import com.api.bee_smart_backend.helper.response.LessonDetailResponse;
+import com.api.bee_smart_backend.helper.response.LessonResponse;
 
 import java.util.Map;
 
@@ -10,13 +10,13 @@ public interface LessonService {
 
     Map<String, Object> getListLessonByTopic(String topicId, String page, String size, String search);
 
-    LessonDetailResponse createLessonByTopicId(String topicId, LessonRequest request);
+    LessonResponse createLessonByTopicId(String topicId, LessonRequest request);
 
-    LessonDetailResponse updateLessonByTopicId(String topicId, String lessonId, LessonRequest request);
+    LessonResponse updateLesson(String lessonId, LessonRequest request);
 
-    void deleteLessonByTopicId(String topicId, String lessonId);
+    void deleteLesson(String lessonId);
 
-    LessonDetailResponse getLessonById(String lessonId);
+    LessonResponse getLessonById(String lessonId);
 
     boolean isAuthenticated();
 }

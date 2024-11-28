@@ -10,4 +10,6 @@ public class LessonResponse {
     private String lessonId;
     private String lessonName;
     private int lessonNumber;
+    private String description;
+    private String content;
 }

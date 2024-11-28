@@ -74,6 +74,8 @@ public class TopicServiceImpl implements TopicService {
                                             .lessonId(lesson.getLessonId())
                                             .lessonName(formattedLessonName)
                                             .lessonNumber(lesson.getLessonNumber())
+                                            .description(lesson.getDescription())
+                                            .content(lesson.getContent())
                                             .build();
                                 })
                                 .toList())
