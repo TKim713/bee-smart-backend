@@ -110,16 +110,9 @@ public class TopicServiceImpl implements TopicService {
     }
 
     @Override
-    public TopicResponse updateTopicByGradeId(String gradeId, String topicId, TopicRequest request) {
-        Grade grade = gradeRepository.findById(gradeId)
-                .orElseThrow(() -> new CustomException("Không tìm thấy khối với ID: " + gradeId, HttpStatus.NOT_FOUND));
-
+    public TopicResponse updateTopic(String topicId, TopicRequest request) {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
-
-        if (!topic.getGrade().getGradeId().equals(gradeId)) {
-            throw new CustomException("Chủ đề không thuộc về khối với ID: " + gradeId, HttpStatus.BAD_REQUEST);
-        }
 
         topic.setTopicName(request.getTopicName());
         topic.setTopicNumber(request.getTopicNumber());

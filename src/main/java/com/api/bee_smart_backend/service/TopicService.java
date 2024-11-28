@@ -13,7 +13,7 @@ public interface TopicService {
 
     TopicResponse createTopicByGradeId(String gradeId, TopicRequest request);
 
-    TopicResponse updateTopicByGradeId(String gradeId, String topicId, TopicRequest request);
+    TopicResponse updateTopic(String topicId, TopicRequest request);
 
     TopicResponse getTopicById(String topicId);
 }

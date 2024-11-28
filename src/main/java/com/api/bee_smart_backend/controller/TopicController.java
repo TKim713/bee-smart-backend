@@ -1,12 +1,9 @@
 package com.api.bee_smart_backend.controller;
 
 import com.api.bee_smart_backend.helper.exception.CustomException;
-import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.request.TopicRequest;
-import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.helper.response.TopicResponse;
-import com.api.bee_smart_backend.model.Topic;
 import com.api.bee_smart_backend.service.LessonService;
 import com.api.bee_smart_backend.service.TopicService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,13 +40,12 @@ public class TopicController {
         }
     }
 
-    @PutMapping("/{topicId}/grade/{gradeId}")
-    public ResponseEntity<ResponseObject<TopicResponse>> updateTopicByGradeId(
-            @PathVariable String gradeId,
+    @PutMapping("/{topicId}")
+    public ResponseEntity<ResponseObject<TopicResponse>> updateTopic(
             @PathVariable String topicId,
             @RequestBody TopicRequest request) {
         try {
-            TopicResponse topicResponse = topicService.updateTopicByGradeId(gradeId, topicId, request);
+            TopicResponse topicResponse = topicService.updateTopic(topicId, request);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Chủ đề được cập nhật thành công!", topicResponse));
         } catch (CustomException e) {
