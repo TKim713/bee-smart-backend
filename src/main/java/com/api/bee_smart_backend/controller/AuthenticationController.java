@@ -74,13 +74,13 @@ public class AuthenticationController {
         String jwtToken = token.replace("Bearer ", "");
         try {
             authenticationService.logout(jwtToken);
-            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Logout successfully", null));
+            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Đăng xuất thành công", null));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
-                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Error during logout", null));
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi đăng xuất", null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 

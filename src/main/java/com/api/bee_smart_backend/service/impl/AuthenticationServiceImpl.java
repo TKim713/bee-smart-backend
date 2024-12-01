@@ -49,6 +49,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 throw new CustomException("ACCOUNT_NOT_VERIFIED", HttpStatus.FORBIDDEN);
             }
 
+            if (!user.isActive()) {
+                throw new CustomException("ACCOUNT_NOT_ACTIVE", HttpStatus.FORBIDDEN);
+            }
+
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
                             authenticationRequest.getUsername(),

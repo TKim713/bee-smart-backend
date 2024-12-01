@@ -3,6 +3,8 @@ package com.api.bee_smart_backend.repository;
 import com.api.bee_smart_backend.model.User;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
+
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends MongoRepository<User, String> {
@@ -15,4 +17,7 @@ public interface UserRepository extends MongoRepository<User, String> {
     boolean existsByUsername(String username);
 
     Optional<User> findByEmail(String email);
+
+    @Query("{ 'deletedAt': null }")
+    List<User> findAllActive();
 }

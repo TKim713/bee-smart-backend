@@ -28,6 +28,7 @@ public class User {
     private Role role;
 
     private boolean enabled = false;
+    private boolean active = true;
 
     @CreatedDate
     private Instant createdAt;

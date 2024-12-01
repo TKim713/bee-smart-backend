@@ -6,6 +6,7 @@ import com.api.bee_smart_backend.helper.enums.TokenType;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
 import com.api.bee_smart_backend.helper.response.CreateUserResponse;
+import com.api.bee_smart_backend.helper.response.UserResponse;
 import com.api.bee_smart_backend.model.Token;
 import com.api.bee_smart_backend.model.User;
 import com.api.bee_smart_backend.repository.TokenRepository;
@@ -20,9 +21,10 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -111,5 +113,44 @@ public class UserServiceImpl implements UserService {
         } else {
             return "Liên kết xác minh không hợp lệ hoặc đã hết hạn!";
         }
+    }
+
+    @Override
+    public List<UserResponse> getAllUsers() {
+        return userRepository.findAllActive().stream()
+                .map(user -> UserResponse.builder()
+                        .userId(user.getUserId())
+                        .username(user.getUsername())
+                        .email(user.getEmail())
+                        .role(user.getRole().name())
+                        .enabled(user.isEnabled())
+                        .active(user.isActive())
+                        .createdAt(user.getCreatedAt())
+                        .updatedAt(user.getUpdatedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public void deleteUserById(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Người dùng không tồn tại", HttpStatus.NOT_FOUND));
+        user.setDeletedAt(now);
+        userRepository.save(user);
+    }
+
+    @Override
+    public void deactivateUser(String userId, boolean activeStatus) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Người dùng không tồn tại", HttpStatus.NOT_FOUND));
+
+        if (user.isActive() == activeStatus) {
+            String action = activeStatus ? "kích hoạt" : "vô hiệu hóa";
+            throw new CustomException("Người dùng đã được " + action + " trước đó", HttpStatus.BAD_REQUEST);
+        }
+
+        user.setActive(activeStatus);
+        user.setUpdatedAt(now);
+        userRepository.save(user);
     }
 }
