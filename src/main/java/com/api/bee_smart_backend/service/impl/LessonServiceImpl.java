@@ -83,6 +83,14 @@ public class LessonServiceImpl implements LessonService {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
+        // Determine the chapter based on the topic's semester
+        String semester = topic.getSemester();
+        String chapter = switch (semester) {
+            case "Học kì 1" -> "I";
+            case "Học kì 2" -> "II";
+            default -> "Unknown"; // Default value if semester does not match
+        };
+
         Page<Lesson> lessonPage;
 
         // Check if search is empty or not
@@ -93,7 +101,22 @@ public class LessonServiceImpl implements LessonService {
         }
 
         List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
-                .map(lesson -> mapData.mapOne(lesson, LessonResponse.class))
+                .map(lesson -> {
+                    String formattedLessonName = String.format(
+                            "%s.%d.%d. %s",
+                            chapter,
+                            topic.getTopicNumber(),
+                            lesson.getLessonNumber(),
+                            lesson.getLessonName()
+                    );
+
+                    return LessonResponse.builder()
+                            .lessonId(lesson.getLessonId())
+                            .lessonName(formattedLessonName)
+                            .description(lesson.getDescription())
+                            .content(lesson.getContent())
+                            .build();
+                })
                 .toList();
 
         Map<String, Object> response = new HashMap<>();

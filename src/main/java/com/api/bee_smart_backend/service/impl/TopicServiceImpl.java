@@ -161,8 +161,15 @@ public class TopicServiceImpl implements TopicService {
         }
 
         for (Topic topic : topics) {
-            lessonRepository.deleteAll(topic.getLessons());
+            if (!topic.getLessons().isEmpty()) {
+                throw new CustomException(
+                        "Không thể xóa chủ đề chứa bài học: " + topic.getTopicName(),
+                        HttpStatus.BAD_REQUEST
+                );
+            }
+        }
 
+        for (Topic topic : topics) {
             Grade grade = topic.getGrade();
 
             if (grade != null) {
