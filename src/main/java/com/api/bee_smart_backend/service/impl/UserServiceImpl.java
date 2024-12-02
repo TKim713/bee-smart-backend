@@ -68,6 +68,7 @@ public class UserServiceImpl implements UserService {
                 .password(password)
                 .role(Role.valueOf(userRequest.getRole()))
                 .enabled(false)  // Default to false until verified
+                .active(true)
                 .createdAt(now)
                 .build();
 

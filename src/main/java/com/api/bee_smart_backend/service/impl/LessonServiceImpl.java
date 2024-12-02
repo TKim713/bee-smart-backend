@@ -73,22 +73,19 @@ public class LessonServiceImpl implements LessonService {
 
     @Override
     public Map<String, Object> getListLessonByTopic(String topicId, String page, String size, String search) {
-        // Parse page and size with default values
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
 
-        // Find the topic by ID
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
-        // Determine the chapter based on the topic's semester
         String semester = topic.getSemester();
         String chapter = switch (semester) {
             case "Học kì 1" -> "I";
             case "Học kì 2" -> "II";
-            default -> "Unknown"; // Default value if semester does not match
+            default -> "Unknown";
         };
 
         Page<Lesson> lessonPage;
@@ -161,14 +158,12 @@ public class LessonServiceImpl implements LessonService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
 
-        // Update lesson details
         lesson.setLessonName(request.getLessonName());
         lesson.setLessonNumber(request.getLessonNumber());
         lesson.setDescription(request.getDescription());
         lesson.setContent(request.getContent());
         lesson.setUpdatedAt(now);
 
-        // Save the updated lesson
         Lesson updatedLesson = lessonRepository.save(lesson);
 
         return mapData.mapOne(updatedLesson, LessonResponse.class);

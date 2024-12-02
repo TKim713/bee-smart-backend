@@ -1,12 +1,23 @@
 package com.api.bee_smart_backend.service;
 
-import com.api.bee_smart_backend.helper.request.CreateQuizRequest;
+import com.api.bee_smart_backend.helper.request.QuizRequest;
 import com.api.bee_smart_backend.helper.request.SubmissionRequest;
-import com.api.bee_smart_backend.helper.response.CreateQuizResponse;
+import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.SubmissionResponse;
 
-public interface QuizService {
-    CreateQuizResponse createQuiz(String topicId, CreateQuizRequest request);
+import java.util.List;
+import java.util.Map;
 
-    SubmissionResponse submitQuiz(String quizId, SubmissionRequest request);
+public interface QuizService {
+    QuizResponse createQuiz(String topicId, QuizRequest request);
+
+    QuizResponse updateQuiz(String quizId, QuizRequest request);
+
+    List<String> deleteQuizzes(List<String> quizIds);
+
+    Map<String, Object> getQuizzesByTopic(String topicId, String page, String size, String search);
+
+    Map<String, Object> getQuizzesByLessonId(String lessonId, String page, String size);
+
+    Map<String, Object> submitQuiz(String quizId, SubmissionRequest request, String page, String size);
 }

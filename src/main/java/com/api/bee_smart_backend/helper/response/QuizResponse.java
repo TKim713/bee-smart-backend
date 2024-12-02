@@ -5,17 +5,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
+import java.time.Instant;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Data
-public class CreateQuizResponse {
+public class QuizResponse {
     private String quizId;
     private String title;
     private String description;
     private String image;
-    private String topicId;
-    private List<QuestionResponse> questions;
+    private String lessonId;
+    private Instant createdAt;
+    private Instant updatedAt;
+    private Instant deletedAt;
 }

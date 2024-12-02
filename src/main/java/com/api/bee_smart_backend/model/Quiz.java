@@ -25,9 +25,10 @@ public class Quiz {
     private String title;
     private String description;
     private String image;
+    private int quizDuration;
 
     @DBRef
-    private Topic topic;
+    private Lesson lesson;
 
     @DBRef
     private List<Question> questions = new ArrayList<>();

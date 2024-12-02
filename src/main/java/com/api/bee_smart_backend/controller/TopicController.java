@@ -5,6 +5,7 @@ import com.api.bee_smart_backend.helper.request.TopicRequest;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.helper.response.TopicResponse;
 import com.api.bee_smart_backend.service.LessonService;
+import com.api.bee_smart_backend.service.QuizService;
 import com.api.bee_smart_backend.service.TopicService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -22,6 +23,8 @@ public class TopicController {
     private TopicService topicService;
     @Autowired
     private LessonService lessonService;
+    @Autowired
+    private QuizService quizService;
 
     @PostMapping("/grade/{gradeId}")
     public ResponseEntity<ResponseObject<TopicResponse>> createTopicByGradeId(
@@ -100,10 +103,30 @@ public class TopicController {
             Map<String, Object> result = lessonService.getListLessonByTopic(topicId, page, size, search);
 
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lessons retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy bài học thành công: ", result.isEmpty() ? Collections.emptyMap() : result));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{topicId}/quizzes")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getQuizzesByTopic(
+            @PathVariable String topicId,
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size,
+            @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+        try {
+            Map<String, Object> result = quizService.getQuizzesByTopic(topicId, page, size, search);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Quizzes được lấy thành công: ", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 

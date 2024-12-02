@@ -5,6 +5,7 @@ import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.service.LessonService;
+import com.api.bee_smart_backend.service.QuizService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,8 @@ import java.util.Map;
 public class LessonController {
     @Autowired
     private LessonService lessonService;
+    @Autowired
+    private QuizService quizService;
 
     @GetMapping
     public ResponseEntity<ResponseObject<Map<String, Object>>> getAllLessons(@RequestParam(name = "page", required = false) String page,
@@ -113,6 +116,25 @@ public class LessonController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa bài học: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{lessonId}/quizzes")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getQuizzesByLessonId(
+            @PathVariable String lessonId,
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size) {
+        try {
+            Map<String, Object> result = quizService.getQuizzesByLessonId(lessonId, page, size);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Quizzes được lấy thành công: ", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 }

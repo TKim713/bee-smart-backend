@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/questions")
 public class QuestionController {
@@ -34,6 +36,39 @@ public class QuestionController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi thêm câu hỏi: " + e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/{questionId}")
+    public ResponseEntity<ResponseObject<QuestionResponse>> updateQuestionByQuestionId(
+            @PathVariable String questionId,
+            @RequestBody QuestionRequest request) {
+        try {
+            QuestionResponse response = questionService.updateQuestionByQuestionId(questionId, request);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Cập nhật câu hỏi thành công!", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi cập nhật câu hỏi: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping
+    public ResponseEntity<ResponseObject<String>> deleteQuestionsByQuestionIds(
+            @RequestBody List<String> questionIds) {
+        try {
+            questionService.deleteQuestionsByQuestionIds(questionIds);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Xóa câu hỏi thành công!", null));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa câu hỏi: " + e.getMessage(), null));
         }
     }
 }

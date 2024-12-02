@@ -9,8 +9,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 @Data
-public class CreateQuizRequest {
+public class QuizRequest {
     private String title;
     private String description;
     private String image;
+    private int quizDuration;
 }
