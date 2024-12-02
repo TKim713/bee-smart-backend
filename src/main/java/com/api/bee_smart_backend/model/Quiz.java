@@ -24,6 +24,7 @@ public class Quiz {
     private String quizId;
     private String title;
     private String description;
+    private String image;
 
     @DBRef
     private Topic topic;
@@ -35,5 +36,11 @@ public class Quiz {
     private Instant createdAt;
     @LastModifiedDate
     private Instant updatedAt;
+    @LastModifiedDate
+    private Instant deletedAt;
+
+    public void addQuestion(Question question) {
+        questions.add(question);
+    }
 }
 

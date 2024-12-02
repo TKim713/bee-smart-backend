@@ -23,6 +23,7 @@ public class Question {
     private String questionId;
 
     private String content;
+    private String image;
     private List<String> options;
     private int correctAnswerIndex;
 
@@ -33,5 +34,7 @@ public class Question {
     private Instant createdAt;
     @LastModifiedDate
     private Instant updatedAt;
+    @LastModifiedDate
+    private Instant deletedAt;
 }
 
