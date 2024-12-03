@@ -33,13 +33,13 @@ import java.util.*;
 @RequiredArgsConstructor
 public class QuizServiceImpl implements QuizService {
     @Autowired
-    private TopicRepository topicRepository;
+    private final TopicRepository topicRepository;
     @Autowired
-    private QuizRepository quizRepository;
+    private final QuizRepository quizRepository;
     @Autowired
-    private QuestionRepository questionRepository;
+    private final QuestionRepository questionRepository;
     @Autowired
-    private LessonRepository lessonRepository;
+    private final LessonRepository lessonRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();

@@ -4,13 +4,13 @@ import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.enums.Role;
 import com.api.bee_smart_backend.helper.enums.TokenType;
 import com.api.bee_smart_backend.helper.exception.CustomException;
+import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
+import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.CreateUserResponse;
 import com.api.bee_smart_backend.helper.response.UserResponse;
-import com.api.bee_smart_backend.model.Token;
-import com.api.bee_smart_backend.model.User;
-import com.api.bee_smart_backend.repository.TokenRepository;
-import com.api.bee_smart_backend.repository.UserRepository;
+import com.api.bee_smart_backend.model.*;
+import com.api.bee_smart_backend.repository.*;
 import com.api.bee_smart_backend.service.EmailService;
 import com.api.bee_smart_backend.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +21,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,6 +37,14 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private final TokenRepository tokenRepository;
     @Autowired
+    private final ParentRepository parentRepository;
+    @Autowired
+    private final StudentRepository studentRepository;
+    @Autowired
+    private final CustomerRepository customerRepository;
+    @Autowired
+    private final GradeRepository gradeRepository;
+    @Autowired
     private final EmailService emailService;
 
     @Autowired
@@ -46,35 +55,59 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public CreateUserResponse createUser(CreateUserRequest userRequest) {
-        // Check if username already exists
         Optional<User> existingUsername = userRepository.findByUsername(userRequest.getUsername());
         if (existingUsername.isPresent()) {
             throw new CustomException("Username đã tồn tại", HttpStatus.CONFLICT);
         }
 
-        // Check if email already exists
         Optional<User> existingUserEmail = userRepository.findByEmail(userRequest.getEmail());
         if (existingUserEmail.isPresent()) {
             throw new CustomException("Email đã tồn tại", HttpStatus.CONFLICT);
         }
 
-        // Mã hóa mật khẩu
         String password = passwordEncoder.encode(userRequest.getPassword());
+        Role role = Role.valueOf(userRequest.getRole());
 
-        // Tạo đối tượng User
+        if (role == Role.PARENT) {
+            Parent parent = Parent.builder()
+                    .fullName(userRequest.getFullName())
+                    .district("")
+                    .city("")
+                    .dateOfBirth(LocalDate.of(2000, 1, 1))
+                    .phone("")
+                    .address("")
+                    .createdAt(now)
+                    .build();
+
+            customerRepository.save(parent);
+        } else if (role == Role.STUDENT) {
+            Student student = Student.builder()
+                    .fullName(userRequest.getFullName())
+                    .district("")
+                    .city("")
+                    .dateOfBirth(LocalDate.of(2000, 1, 1))
+                    .phone("")
+                    .address("")
+                    .grade("")
+                    .className("")
+                    .createdAt(now)
+                    .build();
+
+            customerRepository.save(student);
+        }
+
         User user = User.builder()
                 .username(userRequest.getUsername())
                 .email(userRequest.getEmail())
                 .password(password)
                 .role(Role.valueOf(userRequest.getRole()))
-                .enabled(false)  // Default to false until verified
+                .enabled(false)
                 .active(true)
                 .createdAt(now)
                 .build();
 
         User savedUser = userRepository.save(user);
 
-        // Tạo token xác thực
         String tokenStr = UUID.randomUUID().toString();
 
         Token token = Token.builder()
@@ -88,7 +121,6 @@ public class UserServiceImpl implements UserService {
 
         Token savedToken = tokenRepository.save(token);
 
-        // Gửi email xác thực với tên người dùng
         emailService.sendEmail(user.getEmail(), "🌟 Xác Thực Email của Bạn cho Bee Smart! 🌟", tokenStr, savedUser.getUsername());
 
         CreateUserResponse response = mapData.mapOne(savedUser, CreateUserResponse.class);
@@ -96,7 +128,6 @@ public class UserServiceImpl implements UserService {
         return response;
     }
 
-    // Method xác thực email
     public String verifyEmail(String tokenStr) {
         Token token = tokenRepository.findByAccessToken(tokenStr);
         if (token != null && !token.isExpired() && !token.isRevoked()) {
@@ -153,5 +184,43 @@ public class UserServiceImpl implements UserService {
         user.setActive(activeStatus);
         user.setUpdatedAt(now);
         userRepository.save(user);
+    }
+
+    @Override
+    public CreateStudentResponse createStudentByParent(String parentId, CreateStudentRequest studentRequest) {
+        Parent parent = parentRepository.findById(parentId)
+                .orElseThrow(() -> new CustomException("Parent not found", HttpStatus.NOT_FOUND));
+
+        if (studentRequest.getGrade() == null || studentRequest.getGrade().isBlank()) {
+            throw new CustomException("Grade is required when creating a student account", HttpStatus.BAD_REQUEST);
+        }
+
+        String password = passwordEncoder.encode(studentRequest.getPassword());
+        User user = User.builder()
+                .username(studentRequest.getUsername())
+                .password(password)
+                .role(Role.valueOf(studentRequest.getRole()))
+                .enabled(true)
+                .active(true)
+                .createdAt(now)
+                .build();
+
+        User savedUser = userRepository.save(user);
+
+        Student student = Student.builder()
+                .fullName(studentRequest.getFullName())
+                .district("")
+                .city("")
+                .dateOfBirth(LocalDate.of(2000, 1, 1))
+                .phone("")
+                .address("")
+                .grade(studentRequest.getGrade())
+                .parent(parent)
+                .className("")
+                .build();
+
+        studentRepository.save(student);
+
+        return mapData.mapOne(savedUser, CreateStudentResponse.class);
     }
 }

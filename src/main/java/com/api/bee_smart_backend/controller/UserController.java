@@ -1,9 +1,12 @@
 package com.api.bee_smart_backend.controller;
 
 import com.api.bee_smart_backend.helper.exception.CustomException;
+import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
+import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.helper.response.UserResponse;
 import com.api.bee_smart_backend.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +65,23 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi cập nhật trạng thái người dùng: " + e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/parent/{parentId}/student")
+    public ResponseEntity<ResponseObject<CreateStudentResponse>> createStudentByParent(
+            @PathVariable String parentId,
+            @RequestBody @Valid CreateStudentRequest studentRequest) {
+        try {
+            CreateStudentResponse response = userService.createStudentByParent(parentId, studentRequest);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(new ResponseObject<>(HttpStatus.CREATED.value(), "Tạo học sinh thành công!", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 }
