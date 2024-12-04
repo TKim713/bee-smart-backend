@@ -12,5 +12,6 @@ import java.util.List;
 @Builder
 @Data
 public class SubmissionRequest {
+    private long timeSpent;
     private List<UserAnswer> answers;
 }

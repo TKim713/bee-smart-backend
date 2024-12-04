@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Map;
 
 public interface QuizService {
+    QuizResponse getQuizById(String quizId);
+
     QuizResponse createQuiz(String topicId, QuizRequest request);
 
     QuizResponse updateQuiz(String quizId, QuizRequest request);
@@ -19,5 +21,5 @@ public interface QuizService {
 
     Map<String, Object> getQuizzesByLessonId(String lessonId, String page, String size);
 
-    Map<String, Object> submitQuiz(String quizId, SubmissionRequest request, String page, String size);
+    Map<String, Object> submitQuiz(String jwtToken, String quizId, SubmissionRequest request, String page, String size);
 }

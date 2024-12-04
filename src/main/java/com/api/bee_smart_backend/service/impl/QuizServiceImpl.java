@@ -7,14 +7,8 @@ import com.api.bee_smart_backend.helper.request.SubmissionRequest;
 import com.api.bee_smart_backend.helper.request.UserAnswer;
 import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.QuestionResult;
-import com.api.bee_smart_backend.model.Lesson;
-import com.api.bee_smart_backend.model.Question;
-import com.api.bee_smart_backend.model.Quiz;
-import com.api.bee_smart_backend.model.Topic;
-import com.api.bee_smart_backend.repository.LessonRepository;
-import com.api.bee_smart_backend.repository.QuestionRepository;
-import com.api.bee_smart_backend.repository.QuizRepository;
-import com.api.bee_smart_backend.repository.TopicRepository;
+import com.api.bee_smart_backend.model.*;
+import com.api.bee_smart_backend.repository.*;
 import com.api.bee_smart_backend.service.QuizService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,9 +35,23 @@ public class QuizServiceImpl implements QuizService {
     private final QuestionRepository questionRepository;
     @Autowired
     private final LessonRepository lessonRepository;
+    @Autowired
+    private final UserRepository userRepository;
+    @Autowired
+    private final TokenRepository tokenRepository;
+    @Autowired
+    private final StatisticRepository statisticRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
+
+    @Override
+    public QuizResponse getQuizById(String quizId) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new CustomException("Quiz not found with ID: " + quizId, HttpStatus.NOT_FOUND));
+
+        return mapData.mapOne(quiz, QuizResponse.class);
+    }
 
     @Override
     public QuizResponse createQuiz(String lessonId, QuizRequest request) {
@@ -166,7 +174,7 @@ public class QuizServiceImpl implements QuizService {
     }
 
     @Override
-    public Map<String, Object> submitQuiz(String quizId, SubmissionRequest request, String page, String size) {
+    public Map<String, Object> submitQuiz(String jwtToken, String quizId, SubmissionRequest request, String page, String size) {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
@@ -206,6 +214,20 @@ public class QuizServiceImpl implements QuizService {
         int fromIndex = Math.min(pageNumber * pageSize, results.size());
         int toIndex = Math.min(fromIndex + pageSize, results.size());
         List<QuestionResult> paginatedResults = results.subList(fromIndex, toIndex);
+
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+        User user = userRepository.findById(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+        Statistic statistic = statisticRepository.findByUserAndDeletedAtIsNull(user)
+                .orElseThrow(() -> new CustomException("Statistic of user not found", HttpStatus.NOT_FOUND));
+
+        statistic.setUpdatedAt(Instant.now());
+        statistic.setNumberOfQuestionsAnswered(statistic.getNumberOfQuestionsAnswered() + request.getAnswers().size());
+        statistic.setNumberOfQuizzesDone(statistic.getNumberOfQuizzesDone() + 1);
+        statistic.setTimeSpentDoingQuizzes(statistic.getTimeSpentDoingQuizzes() + request.getTimeSpent());
+
+        statisticRepository.save(statistic);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalQuestions", allQuestions.size());

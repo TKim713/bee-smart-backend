@@ -41,6 +41,21 @@ public class QuizController {
         }
     }
 
+    @GetMapping("/{quizId}")
+    public ResponseEntity<ResponseObject<QuizResponse>> getQuizById(@PathVariable String quizId) {
+        try {
+            QuizResponse quizResponse = quizService.getQuizById(quizId);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy thông tin quiz thành công!", quizResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy thông tin quiz: " + e.getMessage(), null));
+        }
+    }
+
     @PutMapping("/{quizId}")
     public ResponseEntity<ResponseObject<QuizResponse>> updateQuiz(
             @PathVariable String quizId,
@@ -99,12 +114,14 @@ public class QuizController {
 
     @PostMapping("/{quizId}/submit-quiz")
     public ResponseEntity<ResponseObject<Map<String, Object>>> submitQuiz(
+            @RequestHeader("Authorization") String token,
             @PathVariable String quizId,
             @RequestBody SubmissionRequest request,
             @RequestParam(name = "page", required = false) String page,
             @RequestParam(name = "size", required = false) String size) {
+        String jwtToken = token.replace("Bearer ", "");
         try {
-            Map<String, Object> response = quizService.submitQuiz(quizId, request, page, size);
+            Map<String, Object> response = quizService.submitQuiz(jwtToken, quizId, request, page, size);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Quiz submitted successfully", response));
         } catch (CustomException e) {

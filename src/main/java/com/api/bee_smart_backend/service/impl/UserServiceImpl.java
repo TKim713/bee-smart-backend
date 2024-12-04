@@ -276,6 +276,13 @@ public class UserServiceImpl implements UserService {
 
         studentRepository.save(student);
 
+        Statistic statistic = Statistic.builder()
+                .user(savedUser)
+                .numberOfQuestionsAnswered(0)
+                .timeSpentLearning(0)
+                .numberOfQuizzesDone(0)
+                .timeSpentDoingQuizzes(0).build();
+
         return mapData.mapOne(savedUser, CreateStudentResponse.class);
     }
 }
