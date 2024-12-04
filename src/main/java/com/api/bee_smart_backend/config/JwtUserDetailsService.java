@@ -24,7 +24,7 @@ public class JwtUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         // Fetch user from the database
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUsernameAndDeletedAtIsNull(username)
                 .orElseThrow(() -> new UsernameNotFoundException(String.format("USER_NOT_FOUND '%s'.", username)));
 
         // Convert the user's role to a GrantedAuthority

@@ -21,7 +21,7 @@ import java.util.List;
 public class Question {
     @Id
     private String questionId;
-
+    private String questionNumber;
     private String content;
     private String image;
     private List<String> options;

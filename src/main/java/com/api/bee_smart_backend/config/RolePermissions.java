@@ -7,16 +7,13 @@ public class RolePermissions {
             "SYSTEM_ADMIN"
     };
 
-//    // Roles for staff management APIs
-//    public static final String[] STAFF_MANAGEMENT_ROLES = {
-//            "ROLE_SYSTEM_ADMIN",
-//            "ROLE_RESTAURANT_OWNER"
-//    };
-//
-//    // Roles for customer management APIs
-//    public static final String[] CUSTOMER_MANAGEMENT_ROLES = {
-//            "ROLE_SYSTEM_ADMIN",
-//            "ROLE_RESTAURANT_OWNER",
-//            "ROLE_RESTAURANT_STAFF"
-//    };
+    // Roles for customer APIs
+    public static final String[] CUSTOMER_ROLES = {
+            "STUDENT",
+            "PARENT"
+    };
+
+    public static final String[] PARENT_ROLES = {
+            "PARENT"
+    };
 }

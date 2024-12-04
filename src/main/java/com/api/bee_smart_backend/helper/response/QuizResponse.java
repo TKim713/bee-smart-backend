@@ -16,6 +16,7 @@ public class QuizResponse {
     private String title;
     private String description;
     private String image;
+    private int quizDuration;
     private String lessonId;
     private Instant createdAt;
     private Instant updatedAt;

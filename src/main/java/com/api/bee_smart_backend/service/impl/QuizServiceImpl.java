@@ -22,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -93,7 +94,8 @@ public class QuizServiceImpl implements QuizService {
                 continue;
             }
 
-            quizRepository.delete(quiz);
+            quiz.setDeletedAt(now);
+            quizRepository.save(quiz);
         }
         return undeletedQuizIds;
     }
@@ -108,7 +110,7 @@ public class QuizServiceImpl implements QuizService {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
 
-        List<Lesson> lessons = lessonRepository.findByTopic(topic);
+        List<Lesson> lessons = lessonRepository.findByTopicAndDeletedAtIsNull(topic);
 
         if (lessons.isEmpty()) {
             return Collections.emptyMap();
@@ -117,21 +119,16 @@ public class QuizServiceImpl implements QuizService {
         Page<Quiz> quizPage;
 
         if (search == null || search.isBlank()) {
-            quizPage = quizRepository.findByLessonIn(lessons, pageable);
+            quizPage = quizRepository.findByLessonInAndDeletedAtIsNull(lessons, pageable);
         } else {
-            quizPage = quizRepository.findByLessonInAndTitleContainingIgnoreCase(lessons, search, pageable);
+            quizPage = quizRepository.findByLessonInAndTitleContainingIgnoreCaseAndDeletedAtIsNull(lessons, search, pageable);
         }
 
         List<QuizResponse> quizResponses = quizPage.getContent().stream()
-                .map(quiz -> QuizResponse.builder()
-                        .quizId(quiz.getQuizId())
-                        .title(quiz.getTitle())
-                        .description(quiz.getDescription())
-                        .image(quiz.getImage())
-                        .createdAt(quiz.getCreatedAt())
-                        .updatedAt(quiz.getUpdatedAt())
-                        .deletedAt(quiz.getDeletedAt())
-                        .build())
+                .sorted(Comparator.comparing(quiz -> quiz.getLesson().getLessonNumber()))
+                .skip((long) pageNumber * pageSize)
+                .limit(pageSize)
+                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
                 .toList();
 
         Map<String, Object> response = new HashMap<>();
@@ -148,23 +145,15 @@ public class QuizServiceImpl implements QuizService {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "title"));
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
 
-        Page<Quiz> quizPage = quizRepository.findByLesson(lesson, pageable);
+        Page<Quiz> quizPage = quizRepository.findByLessonAndDeletedAtIsNull(lesson, pageable);
 
         List<QuizResponse> quizResponses = quizPage.getContent().stream()
-                .map(quiz -> QuizResponse.builder()
-                        .quizId(quiz.getQuizId())
-                        .title(quiz.getTitle())
-                        .description(quiz.getDescription())
-                        .image(quiz.getImage())
-                        .createdAt(quiz.getCreatedAt())
-                        .updatedAt(quiz.getUpdatedAt())
-                        .deletedAt(quiz.getDeletedAt())
-                        .build())
+                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
                 .toList();
 
         Map<String, Object> response = new HashMap<>();
@@ -186,7 +175,7 @@ public class QuizServiceImpl implements QuizService {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new CustomException("Quiz not found with ID: " + quizId, HttpStatus.NOT_FOUND));
 
-        List<Question> allQuestions = questionRepository.findByQuiz(quiz);
+        List<Question> allQuestions = questionRepository.findByQuizAndDeletedAtIsNull(quiz);
         int correctAnswersCount = 0;
 
         List<QuestionResult> results = new ArrayList<>();

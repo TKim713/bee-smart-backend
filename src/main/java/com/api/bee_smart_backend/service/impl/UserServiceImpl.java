@@ -8,6 +8,7 @@ import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
 import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.CreateUserResponse;
+import com.api.bee_smart_backend.helper.response.UserCustomerResponse;
 import com.api.bee_smart_backend.helper.response.UserResponse;
 import com.api.bee_smart_backend.model.*;
 import com.api.bee_smart_backend.repository.*;
@@ -55,12 +56,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public CreateUserResponse createUser(CreateUserRequest userRequest) {
-        Optional<User> existingUsername = userRepository.findByUsername(userRequest.getUsername());
+        Optional<User> existingUsername = userRepository.findByUsernameAndDeletedAtIsNull(userRequest.getUsername());
         if (existingUsername.isPresent()) {
             throw new CustomException("Username đã tồn tại", HttpStatus.CONFLICT);
         }
 
-        Optional<User> existingUserEmail = userRepository.findByEmail(userRequest.getEmail());
+        Optional<User> existingUserEmail = userRepository.findByEmailAndDeletedAtIsNull(userRequest.getEmail());
         if (existingUserEmail.isPresent()) {
             throw new CustomException("Email đã tồn tại", HttpStatus.CONFLICT);
         }
@@ -131,8 +132,9 @@ public class UserServiceImpl implements UserService {
     }
 
     public String verifyEmail(String tokenStr) {
-        Token token = tokenRepository.findByAccessToken(tokenStr);
-        if (token != null && !token.isExpired() && !token.isRevoked()) {
+        Token token = tokenRepository.findByAccessToken(tokenStr)
+                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+        if (!token.isExpired() && !token.isRevoked()) {
             User user = token.getUser();
             user.setEnabled(true);  // Kích hoạt tài khoản user
             userRepository.save(user);
@@ -151,7 +153,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public List<UserResponse> getAllUsers() {
-        return userRepository.findAllActive().stream()
+        return userRepository.findAll().stream()
                 .map(user -> UserResponse.builder()
                         .userId(user.getUserId())
                         .username(user.getUsername())
@@ -161,16 +163,59 @@ public class UserServiceImpl implements UserService {
                         .active(user.isActive())
                         .createdAt(user.getCreatedAt())
                         .updatedAt(user.getUpdatedAt())
+                        .deletedAt(user.getDeletedAt())
                         .build())
                 .collect(Collectors.toList());
     }
 
     @Override
-    public void deleteUserById(String userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new CustomException("Người dùng không tồn tại", HttpStatus.NOT_FOUND));
-        user.setDeletedAt(now);
-        userRepository.save(user);
+    public UserCustomerResponse getUserInfo(String jwtToken) {
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+        User user = userRepository.findById(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+
+        Customer customer = customerRepository.findByUserAndDeletedAtIsNull(token.getUser())
+                .orElseThrow(() -> new CustomException("Customer not found for user", HttpStatus.NOT_FOUND));
+
+        UserCustomerResponse response = UserCustomerResponse.builder()
+                .fullName(customer.getFullName())
+                .username(user.getUsername())
+                .role(user.getRole().name())
+                .district(customer.getDistrict())
+                .city(customer.getCity())
+                .dateOfBirth(customer.getDateOfBirth())
+                .phone(customer.getPhone())
+                .email(user.getEmail())
+                .address(customer.getAddress())
+                .build();
+
+        if (customer instanceof Student student) {
+            response.setGrade(student.getGrade());
+            response.setClassName(student.getClassName());
+            response.setSchool(student.getSchool());
+        }
+
+        return response;
+    }
+
+    @Override
+    public void deleteUsersByIds(List<String> userIds) {
+        Instant now = Instant.now();
+
+        for (String userId : userIds) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new CustomException("Người dùng không tồn tại", HttpStatus.NOT_FOUND));
+
+            Customer customer = customerRepository.findByUserAndDeletedAtIsNull(user)
+                    .orElseThrow(() -> new CustomException("Khách hàng không tìm thấy cho người dùng: ", HttpStatus.NOT_FOUND));
+
+            user.setDeletedAt(now);
+            customer.setDeletedAt(now);
+
+            userRepository.save(user);
+            customerRepository.save(customer);
+        }
     }
 
     @Override
@@ -191,7 +236,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public CreateStudentResponse createStudentByParent(String parentId, CreateStudentRequest studentRequest) {
         Parent parent = parentRepository.findById(parentId)
-                .orElseThrow(() -> new CustomException("Parent not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy phụ huynh", HttpStatus.NOT_FOUND));
+
+        Optional<User> existingUsername = userRepository.findByUsernameAndDeletedAtIsNull(studentRequest.getUsername());
+        if (existingUsername.isPresent()) {
+            throw new CustomException("Username đã tồn tại", HttpStatus.CONFLICT);
+        }
 
         if (studentRequest.getGrade() == null || studentRequest.getGrade().isBlank()) {
             throw new CustomException("Grade is required when creating a student account", HttpStatus.BAD_REQUEST);
@@ -200,6 +250,7 @@ public class UserServiceImpl implements UserService {
         String password = passwordEncoder.encode(studentRequest.getPassword());
         User user = User.builder()
                 .username(studentRequest.getUsername())
+                .email("")
                 .password(password)
                 .role(Role.valueOf(studentRequest.getRole()))
                 .enabled(true)
@@ -220,6 +271,7 @@ public class UserServiceImpl implements UserService {
                 .grade(studentRequest.getGrade())
                 .parent(parent)
                 .className("")
+                .school("")
                 .build();
 
         studentRepository.save(student);

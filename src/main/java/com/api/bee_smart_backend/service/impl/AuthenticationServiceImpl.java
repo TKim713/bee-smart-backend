@@ -42,7 +42,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         User user = null;
         try {
             // Check if the user has activated their account
-            user = userRepository.findByUsername(authenticationRequest.getUsername())
+            user = userRepository.findByUsernameAndDeletedAtIsNull(authenticationRequest.getUsername())
                     .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
             if (!user.isEnabled()) {
@@ -88,16 +88,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Override
     public void logout(String tokenStr) {
-        Token token = tokenRepository.findByAccessToken(tokenStr);
-        if (token != null) {
-            token.setExpired(true);
-            token.setRevoked(true);
-            token.setUpdatedAt(now);
-            token.setDeletedAt(now);
-            tokenRepository.save(token);
-        } else {
-            throw new CustomException("Token not found", HttpStatus.NOT_FOUND);
-        }
+        Token token = tokenRepository.findByAccessToken(tokenStr)
+                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+        token.setExpired(true);
+        token.setRevoked(true);
+        token.setUpdatedAt(now);
+        token.setDeletedAt(now);
+        tokenRepository.save(token);
     }
 
     @Override

@@ -4,6 +4,7 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
+import com.api.bee_smart_backend.helper.response.UserCustomerResponse;
 import com.api.bee_smart_backend.helper.response.UserResponse;
 import com.api.bee_smart_backend.service.UserService;
 import jakarta.validation.Valid;
@@ -35,12 +36,28 @@ public class UserController {
         }
     }
 
-    @DeleteMapping("/{userId}")
-    public ResponseEntity<ResponseObject<Void>> deleteUser(@PathVariable String userId) {
+    @GetMapping("/user-info")
+    public ResponseEntity<ResponseObject<UserCustomerResponse>> getUserInfo(@RequestHeader("Authorization") String token) {
+        String jwtToken = token.replace("Bearer ", "");
         try {
-            userService.deleteUserById(userId);
+            UserCustomerResponse response = userService.getUserInfo(jwtToken);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Người dùng đã được xóa thành công", null));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Thông tin người dùng", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy thông tin người dùng", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
+    @DeleteMapping
+    public ResponseEntity<ResponseObject<Void>> deleteUsersByIds(@RequestBody List<String> userIds) {
+        try {
+            userService.deleteUsersByIds(userIds);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Người dùng và khách hàng đã được xóa thành công", null));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));

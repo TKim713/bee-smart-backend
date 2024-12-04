@@ -44,7 +44,7 @@ public class GradeServiceImpl implements GradeService {
 
     @Override
     public Grade createGrade(GradeRequest request) {
-        gradeRepository.findByGradeName(request.getGradeName()).ifPresent(existingGrade -> {
+        gradeRepository.findByGradeNameAndDeletedAtIsNull(request.getGradeName()).ifPresent(existingGrade -> {
             throw new CustomException("Lớp học với tên '" + request.getGradeName() + "' đã tồn tại", HttpStatus.CONFLICT);
         });
 

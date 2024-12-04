@@ -56,7 +56,7 @@ public class JwtTokenUtil implements Serializable {
     }
 
     public boolean isTokenRevoked(String token) {
-        Token savedToken = tokenRepository.findByAccessToken(token);
+        Token savedToken = tokenRepository.findByAccessToken(token).orElse(null);
         return savedToken != null && savedToken.isRevoked();
     }
 

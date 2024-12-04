@@ -10,16 +10,13 @@ import org.springframework.data.mongodb.repository.Query;
 import java.util.List;
 
 public interface LessonRepository extends MongoRepository<Lesson, String> {
-    Page<Lesson> findByTopic(Topic topic, Pageable pageable);
+    Page<Lesson> findByTopicAndDeletedAtIsNull(Topic topic, Pageable pageable);
 
-    Page<Lesson> findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(String lessonName, String description, Pageable pageable);
+    Page<Lesson> findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndDeletedAtIsNull(String lessonName, String description, Pageable pageable);
 
-    @Query(value = "{ 'topic' : ?0 }", sort = "{ '_id' : 1 }")
-    Lesson findFirstByTopicOrderByIdAsc(Topic topic);
-
-    List<Lesson> findByTopic(Topic topic);
+    List<Lesson> findByTopicAndDeletedAtIsNull(Topic topic);
 
     @Query("{ 'topic' : ?0, '$or' : [ { 'lessonName' : { '$regex' : ?1, '$options' : 'i' } }, { 'description' : { '$regex' : ?1, '$options' : 'i' } } ] }")
-    Page<Lesson> findByTopicAndSearch(Topic topic, String search, Pageable pageable);
+    Page<Lesson> findByTopicAndSearchAndDeletedAtIsNull(Topic topic, String search, Pageable pageable);
 }
 

@@ -49,7 +49,7 @@ public class LessonServiceImpl implements LessonService {
         if (search == null || search.isBlank()) {
             lessonPage = lessonRepository.findAll(pageable);
         } else {
-            lessonPage = lessonRepository.findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase(search, search, pageable);
+            lessonPage = lessonRepository.findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndDeletedAtIsNull(search, search, pageable);
         }
 
         List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
@@ -92,9 +92,9 @@ public class LessonServiceImpl implements LessonService {
 
         // Check if search is empty or not
         if (search == null || search.isBlank()) {
-            lessonPage = lessonRepository.findByTopic(topic, pageable);
+            lessonPage = lessonRepository.findByTopicAndDeletedAtIsNull(topic, pageable);
         } else {
-            lessonPage = lessonRepository.findByTopicAndSearch(topic, search, pageable);
+            lessonPage = lessonRepository.findByTopicAndSearchAndDeletedAtIsNull(topic, search, pageable);
         }
 
         List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
@@ -181,7 +181,8 @@ public class LessonServiceImpl implements LessonService {
             topicRepository.save(topic);
         }
 
-        lessonRepository.delete(lesson);
+        lesson.setDeletedAt(now);
+        lessonRepository.save(lesson);
     }
 
     @Override
@@ -199,9 +200,11 @@ public class LessonServiceImpl implements LessonService {
                 topic.getLessons().removeIf(existingLesson -> lessonIds.contains(existingLesson.getLessonId()));
                 topicRepository.save(topic);
             }
+            lesson.setDeletedAt(now);
         }
 
-        lessonRepository.deleteAll(lessons);
+
+        lessonRepository.saveAll(lessons);
     }
 
     @Override

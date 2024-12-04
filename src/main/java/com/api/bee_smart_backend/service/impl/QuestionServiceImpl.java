@@ -80,7 +80,11 @@ public class QuestionServiceImpl implements QuestionService {
             throw new CustomException("Không tìm thấy câu hỏi với ID trong danh sách", HttpStatus.NOT_FOUND);
         }
 
-        questionRepository.deleteAll(questions);
+        for (Question question : questions) {
+            question.setDeletedAt(now);
+        }
+
+        questionRepository.saveAll(questions);
     }
 
     @Override
@@ -96,9 +100,9 @@ public class QuestionServiceImpl implements QuestionService {
         Page<Question> questionPage;
 
         if (search == null || search.isBlank()) {
-            questionPage = questionRepository.findByQuiz(quiz, pageable);
+            questionPage = questionRepository.findByQuizAndDeletedAtIsNull(quiz, pageable);
         } else {
-            questionPage = questionRepository.findByQuizAndContentContainingIgnoreCase(quiz, search, pageable);
+            questionPage = questionRepository.findByQuizAndContentContainingIgnoreCaseAndDeletedAtIsNull(quiz, search, pageable);
         }
 
         List<QuestionResponse> questionResponses = questionPage.getContent().stream()
@@ -113,6 +117,7 @@ public class QuestionServiceImpl implements QuestionService {
 
         Map<String, Object> response = new HashMap<>();
         response.put("totalItems", questionPage.getTotalElements());
+        response.put("quizDuration", quiz.getQuizDuration());
         response.put("totalPages", questionPage.getTotalPages());
         response.put("currentPage", questionPage.getNumber());
         response.put("questions", questionResponses);

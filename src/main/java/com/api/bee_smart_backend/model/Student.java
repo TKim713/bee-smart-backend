@@ -16,4 +16,5 @@ public class Student extends Customer {
     @DBRef
     private Parent parent;
     private String className;
+    private String school;
 }

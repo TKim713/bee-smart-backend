@@ -8,6 +8,6 @@ import java.util.Optional;
 
 public interface GradeRepository extends MongoRepository<Grade, String> {
     @Query("{ 'gradeName' : ?0 }")
-    Optional<Grade> findByGradeName(String gradeName);
+    Optional<Grade> findByGradeNameAndDeletedAtIsNull(String gradeName);
 }
 

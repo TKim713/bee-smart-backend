@@ -9,9 +9,9 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
 
 public interface QuestionRepository extends MongoRepository<Question, String> {
-    List<Question> findByQuiz(Quiz quiz);
+    List<Question> findByQuizAndDeletedAtIsNull(Quiz quiz);
 
-    Page<Question> findByQuiz(Quiz quiz, Pageable pageable);
+    Page<Question> findByQuizAndDeletedAtIsNull(Quiz quiz, Pageable pageable);
 
-    Page<Question> findByQuizAndContentContainingIgnoreCase(Quiz quiz, String content, Pageable pageable);
+    Page<Question> findByQuizAndContentContainingIgnoreCaseAndDeletedAtIsNull(Quiz quiz, String content, Pageable pageable);
 }

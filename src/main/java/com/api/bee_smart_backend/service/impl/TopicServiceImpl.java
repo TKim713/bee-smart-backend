@@ -50,7 +50,7 @@ public class TopicServiceImpl implements TopicService {
 
         Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "topicNumber"));
 
-        Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemester(gradeId, semester, pageable);
+        Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemesterAndDeletedAtIsNull(gradeId, semester, pageable);
 
         String chapter = switch (semester) {
             case "Học kì 1" -> "I";
@@ -142,14 +142,18 @@ public class TopicServiceImpl implements TopicService {
         Topic topic = topicRepository.findById(topicId)
                 .orElseThrow(() -> new CustomException("Chủ đề không tồn tại", HttpStatus.NOT_FOUND));
 
-        lessonRepository.deleteAll(topic.getLessons());
+        if (!topic.getLessons().isEmpty()) {
+            throw new CustomException("Không thể xóa chủ đề vì có bài học liên kết", HttpStatus.BAD_REQUEST);
+        }
+
         Grade grade = topic.getGrade();
 
         if (grade != null) {
             grade.getTopics().removeIf(existingTopic -> existingTopic.getTopicId().equals(topicId));
             gradeRepository.save(grade);
         }
-        topicRepository.delete(topic);
+        topic.setDeletedAt(now);
+        topicRepository.save(topic);
     }
 
     @Override
@@ -176,8 +180,8 @@ public class TopicServiceImpl implements TopicService {
                 grade.getTopics().removeIf(existingTopic -> topicIds.contains(existingTopic.getTopicId()));
                 gradeRepository.save(grade);
             }
-
-            topicRepository.delete(topic);
+            topic.setDeletedAt(now);
+            topicRepository.save(topic);
         }
     }
 }
