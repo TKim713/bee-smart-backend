@@ -7,6 +7,7 @@ import lombok.experimental.SuperBuilder;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -26,6 +27,9 @@ public abstract class Customer {
     private LocalDate dateOfBirth;
     private String phone;
     private String address;
+
+    @DBRef
+    private User user;
 
     @CreatedDate
     private Instant createdAt;

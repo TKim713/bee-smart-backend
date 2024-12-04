@@ -66,35 +66,6 @@ public class UserServiceImpl implements UserService {
         }
 
         String password = passwordEncoder.encode(userRequest.getPassword());
-        Role role = Role.valueOf(userRequest.getRole());
-
-        if (role == Role.PARENT) {
-            Parent parent = Parent.builder()
-                    .fullName(userRequest.getFullName())
-                    .district("")
-                    .city("")
-                    .dateOfBirth(LocalDate.of(2000, 1, 1))
-                    .phone("")
-                    .address("")
-                    .createdAt(now)
-                    .build();
-
-            customerRepository.save(parent);
-        } else if (role == Role.STUDENT) {
-            Student student = Student.builder()
-                    .fullName(userRequest.getFullName())
-                    .district("")
-                    .city("")
-                    .dateOfBirth(LocalDate.of(2000, 1, 1))
-                    .phone("")
-                    .address("")
-                    .grade("")
-                    .className("")
-                    .createdAt(now)
-                    .build();
-
-            customerRepository.save(student);
-        }
 
         User user = User.builder()
                 .username(userRequest.getUsername())
@@ -107,6 +78,37 @@ public class UserServiceImpl implements UserService {
                 .build();
 
         User savedUser = userRepository.save(user);
+        Role role = Role.valueOf(userRequest.getRole());
+
+        if (role == Role.PARENT) {
+            Parent parent = Parent.builder()
+                    .fullName(userRequest.getFullName())
+                    .district("")
+                    .city("")
+                    .dateOfBirth(LocalDate.of(2000, 1, 1))
+                    .phone("")
+                    .address("")
+                    .user(savedUser)
+                    .createdAt(now)
+                    .build();
+
+            customerRepository.save(parent);
+        } else if (role == Role.STUDENT) {
+            Student student = Student.builder()
+                    .fullName(userRequest.getFullName())
+                    .district("")
+                    .city("")
+                    .dateOfBirth(LocalDate.of(2000, 1, 1))
+                    .phone("")
+                    .address("")
+                    .user(savedUser)
+                    .grade("")
+                    .className("")
+                    .createdAt(now)
+                    .build();
+
+            customerRepository.save(student);
+        }
 
         String tokenStr = UUID.randomUUID().toString();
 
@@ -214,6 +216,7 @@ public class UserServiceImpl implements UserService {
                 .dateOfBirth(LocalDate.of(2000, 1, 1))
                 .phone("")
                 .address("")
+                .user(savedUser)
                 .grade(studentRequest.getGrade())
                 .parent(parent)
                 .className("")
