@@ -41,7 +41,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     public JwtResponse authenticate(JwtRequest authenticationRequest) throws CustomException {
         User user = null;
         try {
-            // Check if the user has activated their account
             user = userRepository.findByUsernameAndDeletedAtIsNull(authenticationRequest.getUsername())
                     .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
@@ -77,13 +76,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .tokenType(TokenType.BEARER)
                 .expired(false)
                 .revoked(false)
-                .user(user) // `user` reference is still valid in MongoDB
+                .user(user)
                 .createdAt(now)
                 .build();
 
         tokenRepository.save(newToken);
 
-        return new JwtResponse(accessToken, refreshToken);
+        return JwtResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .userId(user.getUserId())
+                .username(user.getUsername())
+                .role(user.getRole().toString())
+                .build();
     }
 
     @Override
@@ -114,13 +119,20 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new CustomException("Invalid refresh token", HttpStatus.UNAUTHORIZED);
         }
 
-        UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(token.getUser().getUsername());
+        User user = token.getUser();
+        UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(user.getUsername());
         String newAccessToken = jwtTokenUtil.generateToken(userDetails);
 
         token.setAccessToken(newAccessToken);
         token.setUpdatedAt(now);
         tokenRepository.save(token);
 
-        return new JwtResponse(newAccessToken, refreshToken);
+        return JwtResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshToken)
+                .userId(user.getUserId())
+                .username(user.getUsername())
+                .role(user.getRole().toString())
+                .build();
     }
 }
