@@ -1,7 +1,7 @@
 package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.helper.exception.CustomException;
-import com.api.bee_smart_backend.helper.response.QuizCountByGradeResponse;
+import com.api.bee_smart_backend.helper.response.QuizRecordResponse;
 import com.api.bee_smart_backend.helper.response.aggregation.QuizTopicProjection;
 import com.api.bee_smart_backend.model.QuizRecord;
 import com.api.bee_smart_backend.model.User;
@@ -11,12 +11,17 @@ import com.api.bee_smart_backend.service.QuizRecordService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.aggregation.Aggregation;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -29,6 +34,42 @@ public class QuizRecordServiceImpl implements QuizRecordService {
 
     @Autowired
     private MongoTemplate mongoTemplate;
+
+    @Override
+    public Map<String, Object> getListQuizRecord(String page, String size, String search) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Page<QuizRecord> quizRecordPage;
+
+        if (search == null || search.isBlank()) {
+            quizRecordPage = quizRecordRepository.findAll(pageable);
+        } else {
+            quizRecordPage = quizRecordRepository.findByQuizContainingIgnoreCaseOrUserContainingIgnoreCase(search, search, pageable);
+        }
+
+        List<QuizRecordResponse> quizRecordResponses = quizRecordPage.getContent().stream()
+                .map(quizRecord -> QuizRecordResponse.builder()
+                        .recordId(quizRecord.getRecordId())
+                        .username(quizRecord.getUser().getUsername())
+                        .quizName(quizRecord.getQuiz().getTitle())
+                        .totalQuestions(quizRecord.getTotalQuestions())
+                        .correctAnswers(quizRecord.getCorrectAnswers())
+                        .points(quizRecord.getPoints())
+                        .timeSpent(quizRecord.getTimeSpent())
+                        .createdAt(quizRecord.getCreatedAt())
+                        .build())
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalItems", quizRecordPage.getTotalElements());
+        response.put("totalPages", quizRecordPage.getTotalPages());
+        response.put("currentPage", quizRecordPage.getNumber());
+        response.put("quizRecords", quizRecordResponses);
+
+        return response;
+    }
 
     @Override
     public List<QuizRecord> getQuizRecords(String userId) {

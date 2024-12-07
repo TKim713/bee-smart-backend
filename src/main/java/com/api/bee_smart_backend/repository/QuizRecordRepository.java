@@ -3,6 +3,8 @@ package com.api.bee_smart_backend.repository;
 import com.api.bee_smart_backend.helper.response.QuizCountByGradeResponse;
 import com.api.bee_smart_backend.model.QuizRecord;
 import com.api.bee_smart_backend.model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
@@ -21,4 +23,6 @@ public interface QuizRecordRepository extends MongoRepository<QuizRecord, String
             "{ $project: { recordId: 1, quizTitle: '$quizData.title', lessonName: '$lessonData.lessonName', topicName: '$topicData.topicName' } }"
     })
     List<QuizCountByGradeResponse> countQuizzesByGrade();
+
+    Page<QuizRecord> findByQuizContainingIgnoreCaseOrUserContainingIgnoreCase(String search, String search1, Pageable pageable);
 }
