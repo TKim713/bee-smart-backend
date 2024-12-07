@@ -1,15 +1,14 @@
 package com.api.bee_smart_backend.service.impl;
 
+import com.api.bee_smart_backend.config.JwtTokenUtil;
 import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.enums.Role;
 import com.api.bee_smart_backend.helper.enums.TokenType;
 import com.api.bee_smart_backend.helper.exception.CustomException;
+import com.api.bee_smart_backend.helper.request.ChangePasswordRequest;
 import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
-import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
-import com.api.bee_smart_backend.helper.response.CreateUserResponse;
-import com.api.bee_smart_backend.helper.response.UserCustomerResponse;
-import com.api.bee_smart_backend.helper.response.UserResponse;
+import com.api.bee_smart_backend.helper.response.*;
 import com.api.bee_smart_backend.model.*;
 import com.api.bee_smart_backend.repository.*;
 import com.api.bee_smart_backend.service.EmailService;
@@ -18,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -47,6 +47,8 @@ public class UserServiceImpl implements UserService {
     private final GradeRepository gradeRepository;
     @Autowired
     private final EmailService emailService;
+    @Autowired
+    private JwtTokenUtil jwtTokenUtil;
 
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
@@ -115,7 +117,7 @@ public class UserServiceImpl implements UserService {
 
         Token token = Token.builder()
                 .accessToken(tokenStr)
-                .tokenType(TokenType.valueOf(TokenType.BEARER.name()))
+                .tokenType(TokenType.VERIFY)
                 .expired(false)
                 .revoked(false)
                 .user(savedUser)
@@ -124,31 +126,60 @@ public class UserServiceImpl implements UserService {
 
         Token savedToken = tokenRepository.save(token);
 
-        emailService.sendEmail(user.getEmail(), "🌟 Xác Thực Email của Bạn cho Bee Smart! 🌟", tokenStr, savedUser.getUsername());
+        emailService.sendEmailWithTemplate(
+                user.getEmail(),
+                "🌟 Xác Thực Email của Bạn cho Bee Smart! 🌟",
+                EmailServiceImpl.VERIFICATION_EMAIL_TEMPLATE,
+                savedUser.getUsername(),
+                EmailServiceImpl.BASE_URL + tokenStr
+        );
 
         CreateUserResponse response = mapData.mapOne(savedUser, CreateUserResponse.class);
         response.setToken(savedToken.getAccessToken());
         return response;
     }
 
-    public String verifyEmail(String tokenStr) {
+    @Override
+    public void verifyEmail(String tokenStr) {
         Token token = tokenRepository.findByAccessToken(tokenStr)
                 .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
         if (!token.isExpired() && !token.isRevoked()) {
             User user = token.getUser();
-            user.setEnabled(true);  // Kích hoạt tài khoản user
+            user.setEnabled(true);
             userRepository.save(user);
 
-            token.setExpired(true); // Đánh dấu token đã hết hạn sau khi xác thực
+            token.setExpired(true);
             token.setRevoked(true);
             token.setUpdatedAt(now);
             token.setDeletedAt(now);
             tokenRepository.save(token);
 
-            return "Xác thực email thành công!";
         } else {
-            return "Liên kết xác minh không hợp lệ hoặc đã hết hạn!";
+            throw  new CustomException("Liên kết xác thực hết hạn hoặc không hợp lệ", HttpStatus.NOT_FOUND);
         }
+    }
+
+    @Override
+    public boolean changePassword(String tokenStr, ChangePasswordRequest changePasswordRequest) {
+        Token token = tokenRepository.findByAccessToken(tokenStr)
+                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+        String username = jwtTokenUtil.getUsernameFromToken(token.getAccessToken());
+        User user = userRepository.findByUsernameAndDeletedAtIsNull(username)
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+
+        if (!passwordEncoder.matches(changePasswordRequest.getOldPassword(), user.getPassword())) {
+            throw new CustomException("Mật khẩu cũ không trùng khớp", HttpStatus.BAD_REQUEST);
+        }
+
+        if (changePasswordRequest.getOldPassword().equals(changePasswordRequest.getNewPassword())) {
+            throw new CustomException("Mật khẩu mới không được trùng với mật khẩu cũ", HttpStatus.BAD_REQUEST);
+        }
+
+        String encodedNewPassword = passwordEncoder.encode(changePasswordRequest.getNewPassword());
+        user.setPassword(encodedNewPassword);
+        userRepository.save(user);
+
+        return true;
     }
 
     @Override

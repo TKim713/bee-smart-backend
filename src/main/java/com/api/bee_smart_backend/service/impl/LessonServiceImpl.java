@@ -210,7 +210,7 @@ public class LessonServiceImpl implements LessonService {
     @Override
     public LessonResponse getLessonById(String lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() -> new CustomException("Lesson not found with ID: " + lessonId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
 
         if (lesson.getLessonNumber() == 1 || isAuthenticated()) {
             return mapData.mapOne(lesson, LessonResponse.class);

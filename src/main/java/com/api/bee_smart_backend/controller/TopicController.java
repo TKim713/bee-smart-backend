@@ -34,13 +34,13 @@ public class TopicController {
             TopicResponse response = topicService.createTopicByGradeId(gradeId, request);
 
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Topic created successfully", response));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Tạo chủ đề thành công", response));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error creating topic: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi tạo dữ liệu: " + e.getMessage(), null));
         }
     }
 
@@ -86,10 +86,10 @@ public class TopicController {
             Map<String, Object> result = topicService.getTopicsByGradeAndSemester(gradeId, semester, page, size);
 
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Topics retrieved successfully", result));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy chủ đề thành công", result));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "An unexpected error occurred: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 

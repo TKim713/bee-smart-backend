@@ -48,7 +48,7 @@ public class QuizServiceImpl implements QuizService {
     @Override
     public QuizResponse getQuizById(String quizId) {
         Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new CustomException("Quiz not found with ID: " + quizId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy quiz với ID: " + quizId, HttpStatus.NOT_FOUND));
 
         return mapData.mapOne(quiz, QuizResponse.class);
     }
@@ -57,7 +57,7 @@ public class QuizServiceImpl implements QuizService {
     public QuizResponse createQuiz(String lessonId, QuizRequest request) {
 
         Lesson lesson = lessonRepository.findById(lessonId)
-                .orElseThrow(() -> new CustomException("Lesson not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy bài học", HttpStatus.NOT_FOUND));
 
         Quiz quiz = Quiz.builder()
                 .title(request.getTitle())
@@ -77,7 +77,7 @@ public class QuizServiceImpl implements QuizService {
     @Override
     public QuizResponse updateQuiz(String quizId, QuizRequest request) {
         Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new CustomException("Quiz not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy quiz", HttpStatus.NOT_FOUND));
 
         quiz.setTitle(request.getTitle());
         quiz.setDescription(request.getDescription());
@@ -95,7 +95,7 @@ public class QuizServiceImpl implements QuizService {
 
         for (String quizId : quizIds) {
             Quiz quiz = quizRepository.findById(quizId)
-                    .orElseThrow(() -> new CustomException("Quiz not found: " + quizId, HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> new CustomException("Không tìm thấy quiz: " + quizId, HttpStatus.NOT_FOUND));
 
             if (quiz.getQuestions() != null && !quiz.getQuestions().isEmpty()) {
                 undeletedQuizIds.add(quizId);
@@ -216,9 +216,9 @@ public class QuizServiceImpl implements QuizService {
         List<QuestionResult> paginatedResults = results.subList(fromIndex, toIndex);
 
         Token token = tokenRepository.findByAccessToken(jwtToken)
-                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
         User user = userRepository.findById(token.getUser().getUserId())
-                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
         Statistic statistic = statisticRepository.findByUserAndDeletedAtIsNull(user)
                 .orElseThrow(() -> new CustomException("Statistic of user not found", HttpStatus.NOT_FOUND));
 

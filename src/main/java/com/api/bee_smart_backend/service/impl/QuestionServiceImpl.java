@@ -38,7 +38,7 @@ public class QuestionServiceImpl implements QuestionService {
     @Override
     public QuestionResponse addQuestionToQuiz(String quizId, QuestionRequest request) {
         Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new CustomException("Quiz not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy quiz", HttpStatus.NOT_FOUND));
 
         Question question = Question.builder()
                 .content(request.getContent())

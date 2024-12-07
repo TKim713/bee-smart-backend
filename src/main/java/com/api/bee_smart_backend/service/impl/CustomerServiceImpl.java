@@ -38,7 +38,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public CustomerResponse updateCustomerById(String customerId, CustomerRequest customerRequest) {
         Customer customer = customerRepository.findById(customerId)
-                .orElseThrow(() -> new CustomException("Customer not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy khách hàng", HttpStatus.NOT_FOUND));
 
         customer.setFullName(customerRequest.getFullName());
         customer.setDistrict(customerRequest.getDistrict());

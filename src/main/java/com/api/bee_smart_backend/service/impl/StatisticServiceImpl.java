@@ -39,9 +39,9 @@ public class StatisticServiceImpl implements StatisticService {
     @Override
     public StatisticResponse getAggregatedStatisticByUserAndDateRange(String jwtToken, String startDate, String endDate) {
         Token token = tokenRepository.findByAccessToken(jwtToken)
-                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
         User user = userRepository.findById(token.getUser().getUserId())
-                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         List<Statistic> statistics;
         LocalDate localStartDate = LocalDate.parse(startDate, formatter);
@@ -49,7 +49,7 @@ public class StatisticServiceImpl implements StatisticService {
 
         if (user.getRole() == Role.PARENT) {
             Parent parent = (Parent) parentRepository.findByUser(user)
-                    .orElseThrow(() -> new CustomException("Parent not found", HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản phụ huynh", HttpStatus.NOT_FOUND));
             List<Student> students = studentRepository.findByParent(parent);
 
             statistics = students.stream()

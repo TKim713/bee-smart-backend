@@ -102,13 +102,13 @@ public class QuizController {
             Map<String, Object> result = questionService.getListQuestionsByQuizId(quizId, page, size, search);
 
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Questions retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy câu hỏi thành công", result.isEmpty() ? Collections.emptyMap() : result));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 
@@ -123,13 +123,13 @@ public class QuizController {
         try {
             Map<String, Object> response = quizService.submitQuiz(jwtToken, quizId, request, page, size);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Quiz submitted successfully", response));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Nộp bài quiz thành công", response));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error submitting quiz: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi nộp bài: " + e.getMessage(), null));
         }
     }
 }

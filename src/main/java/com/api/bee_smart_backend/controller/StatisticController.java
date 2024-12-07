@@ -23,13 +23,13 @@ public class StatisticController {
         String jwtToken = token.replace("Bearer ", "");
         try {
             StatisticResponse response = statisticService.getAggregatedStatisticByUserAndDateRange(jwtToken, startDate, endDate);
-            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Fetched aggregated statistics successfully", response));
+            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu thống kê thành công", response));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error fetching aggregated statistics: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu thống kê: " + e.getMessage(), null));
         }
     }
 }

@@ -2,7 +2,12 @@ package com.api.bee_smart_backend.config;
 
 import java.io.IOException;
 
+import com.api.bee_smart_backend.helper.response.ResponseObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.ExpiredJwtException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,15 +34,32 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
         String jwtToken = getJWTFromRequest(request);
-        UserDetails userDetails = jwtToken != null ? getUserDetails(jwtToken) : null;
+        UserDetails userDetails = null;
 
-        if (jwtToken != null && userDetails != null && jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-            UsernamePasswordAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-            authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        try {
+            if (jwtToken != null) {
+                userDetails = getUserDetails(jwtToken);
+
+                if (userDetails != null && jwtTokenUtil.validateToken(jwtToken, userDetails)) {
+                    UsernamePasswordAuthenticationToken authenticationToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                }
+            }
+
+            chain.doFilter(request, response);
+        } catch (ExpiredJwtException ex) {
+            response.setStatus(HttpStatus.UNAUTHORIZED.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            ResponseObject responseObject = new ResponseObject(401, "Token đã hết hạn", null);
+            response.getWriter().write(new ObjectMapper().writeValueAsString(responseObject));
+        } catch (Exception ex) {
+            response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            ResponseObject responseObject = new ResponseObject(500, "Đã xảy ra lỗi khi xử lý token", null);
+            response.getWriter().write(new ObjectMapper().writeValueAsString(responseObject));
         }
-        chain.doFilter(request, response);
     }
 
     private String getJWTFromRequest(HttpServletRequest request) {

@@ -1,6 +1,7 @@
 package com.api.bee_smart_backend.controller;
 
 import com.api.bee_smart_backend.helper.exception.CustomException;
+import com.api.bee_smart_backend.helper.request.ChangePasswordRequest;
 import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
@@ -53,7 +54,7 @@ public class UserController {
     }
 
     @DeleteMapping
-    public ResponseEntity<ResponseObject<Void>> deleteUsersByIds(@RequestBody List<String> userIds) {
+    public ResponseEntity<ResponseObject<Object>> deleteUsersByIds(@RequestBody List<String> userIds) {
         try {
             userService.deleteUsersByIds(userIds);
             return ResponseEntity.status(HttpStatus.OK)
@@ -99,6 +100,29 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<ResponseObject<String>> changePassword(
+            @RequestHeader("Authorization") String token,
+            @Valid @RequestBody ChangePasswordRequest changePasswordRequest) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            boolean success = userService.changePassword(jwtToken, changePasswordRequest);
+            if (success) {
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new ResponseObject<>(HttpStatus.OK.value(), "Đổi mật khẩu thành công", "Success"));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Đổi mật khẩu thất bại", null));
+            }
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi đổi mật khẩu", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi bất ngờ: " + e.getMessage(), null));
         }
     }
 }

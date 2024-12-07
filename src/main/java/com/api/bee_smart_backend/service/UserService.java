@@ -1,5 +1,6 @@
 package com.api.bee_smart_backend.service;
 
+import com.api.bee_smart_backend.helper.request.ChangePasswordRequest;
 import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
 import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
@@ -12,7 +13,9 @@ import java.util.List;
 public interface UserService {
     CreateUserResponse createUser(CreateUserRequest userRequest);
 
-    String verifyEmail(String token);
+    void verifyEmail(String token);
+
+    boolean changePassword(String tokenStr, ChangePasswordRequest changePasswordRequest);
 
     List<UserResponse> getAllUsers();
 

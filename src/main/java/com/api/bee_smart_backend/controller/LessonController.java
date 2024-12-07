@@ -31,10 +31,10 @@ public class LessonController {
             Map<String, Object> result = lessonService.getAllLessons(page, size, search);
 
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lessons retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy bài học thành công", result.isEmpty() ? Collections.emptyMap() : result));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "An unexpected error occurred: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 
@@ -44,13 +44,13 @@ public class LessonController {
             // Retrieve lesson with access logic
             LessonResponse lessonResponse = lessonService.getLessonById(lessonId);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lesson retrieved successfully", lessonResponse));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy bài học thành công", lessonResponse));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving lesson: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy bài học: " + e.getMessage(), null));
         }
     }
 
