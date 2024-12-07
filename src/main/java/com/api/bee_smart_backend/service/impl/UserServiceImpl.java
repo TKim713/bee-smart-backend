@@ -17,7 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -44,7 +43,7 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private final CustomerRepository customerRepository;
     @Autowired
-    private final GradeRepository gradeRepository;
+    private final StatisticRepository statisticRepository;
     @Autowired
     private final EmailService emailService;
     @Autowired
@@ -153,6 +152,15 @@ public class UserServiceImpl implements UserService {
             token.setUpdatedAt(now);
             token.setDeletedAt(now);
             tokenRepository.save(token);
+
+            Statistic statistic = Statistic.builder()
+                    .user(user)
+                    .numberOfQuestionsAnswered(0)
+                    .timeSpentLearning(0)
+                    .numberOfQuizzesDone(0)
+                    .timeSpentDoingQuizzes(0).build();
+
+            statisticRepository.save(statistic);
 
         } else {
             throw  new CustomException("Liên kết xác thực hết hạn hoặc không hợp lệ", HttpStatus.NOT_FOUND);

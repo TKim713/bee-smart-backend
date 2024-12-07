@@ -156,7 +156,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<ResponseObject<String>> resetPassword(@RequestBody ResetPasswordRequest resetPasswordRequest) {
+    public ResponseEntity<ResponseObject<String>> resetPassword(@RequestBody @Valid ResetPasswordRequest resetPasswordRequest) {
         try {
             boolean success = authenticationService.resetPassword(resetPasswordRequest);
             if (success) {

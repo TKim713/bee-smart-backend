@@ -41,6 +41,8 @@ public class QuizServiceImpl implements QuizService {
     private final TokenRepository tokenRepository;
     @Autowired
     private final StatisticRepository statisticRepository;
+    @Autowired
+    private final QuizRecordRepository quizRecordRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
@@ -219,15 +221,27 @@ public class QuizServiceImpl implements QuizService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
         User user = userRepository.findById(token.getUser().getUserId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-        Statistic statistic = statisticRepository.findByUserAndDeletedAtIsNull(user)
-                .orElseThrow(() -> new CustomException("Statistic of user not found", HttpStatus.NOT_FOUND));
+//        Statistic statistic = statisticRepository.findByUserAndDeletedAtIsNull(user)
+//                .orElseThrow(() -> new CustomException("Không tìm thấy thống kê người dùng", HttpStatus.NOT_FOUND));
 
-        statistic.setUpdatedAt(Instant.now());
-        statistic.setNumberOfQuestionsAnswered(statistic.getNumberOfQuestionsAnswered() + request.getAnswers().size());
-        statistic.setNumberOfQuizzesDone(statistic.getNumberOfQuizzesDone() + 1);
-        statistic.setTimeSpentDoingQuizzes(statistic.getTimeSpentDoingQuizzes() + request.getTimeSpent());
+        QuizRecord quizRecord = QuizRecord.builder()
+                .user(user)
+                .quiz(quiz)
+                .totalQuestions(allQuestions.size())
+                .correctAnswers(correctAnswersCount)
+                .points(points)
+                .timeSpent(request.getTimeSpent())
+                .createdAt(now)
+                .build();
 
-        statisticRepository.save(statistic);
+        quizRecordRepository.save(quizRecord);
+
+//        statistic.setUpdatedAt(Instant.now());
+//        statistic.setNumberOfQuestionsAnswered(statistic.getNumberOfQuestionsAnswered() + request.getAnswers().size());
+//        statistic.setNumberOfQuizzesDone(statistic.getNumberOfQuizzesDone() + 1);
+//        statistic.setTimeSpentDoingQuizzes(statistic.getTimeSpentDoingQuizzes() + request.getTimeSpent());
+//
+//        statisticRepository.save(statistic);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalQuestions", allQuestions.size());
