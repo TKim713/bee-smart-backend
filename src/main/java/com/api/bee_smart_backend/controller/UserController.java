@@ -3,6 +3,7 @@ package com.api.bee_smart_backend.controller;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.ChangePasswordRequest;
 import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
+import com.api.bee_smart_backend.helper.request.UserRequest;
 import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.helper.response.UserCustomerResponse;
@@ -86,12 +87,13 @@ public class UserController {
         }
     }
 
-    @PostMapping("/parent/{parentId}/student")
+    @PostMapping("/parent/create-student")
     public ResponseEntity<ResponseObject<CreateStudentResponse>> createStudentByParent(
-            @PathVariable String parentId,
+            @RequestHeader("Authorization") String token,
             @RequestBody @Valid CreateStudentRequest studentRequest) {
+        String jwtToken = token.replace("Bearer ", "");
         try {
-            CreateStudentResponse response = userService.createStudentByParent(parentId, studentRequest);
+            CreateStudentResponse response = userService.createStudentByParent(jwtToken, studentRequest);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new ResponseObject<>(HttpStatus.CREATED.value(), "Tạo học sinh thành công!", response));
         } catch (CustomException e) {
@@ -123,6 +125,24 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi bất ngờ: " + e.getMessage(), null));
+        }
+    }
+
+    @PutMapping("/user-info")
+    public ResponseEntity<ResponseObject<UserCustomerResponse>> changeUserInfo(
+            @RequestHeader("Authorization") String token,
+            @RequestBody UserRequest request) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            UserCustomerResponse response = userService.changeUserInfo(jwtToken, request);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Thông tin người dùng đã được cập nhật", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi cập nhật thông tin người dùng", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 }

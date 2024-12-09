@@ -44,13 +44,15 @@ public class TopicServiceImpl implements TopicService {
     private final Instant now = Instant.now();
 
     @Override
-    public Map<String, Object> getTopicsByGradeAndSemester(String gradeId, String semester, String page, String size) {
+    public Map<String, Object> getTopicsByGradeAndSemester(String grade, String semester, String page, String size) {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
         Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "topicNumber"));
+        Grade existingGrade = gradeRepository.findByGradeNameAndDeletedAtIsNull(grade)
+                .orElseThrow(() -> new CustomException("Lớp không tồn tại", HttpStatus.NOT_FOUND));
 
-        Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemesterAndDeletedAtIsNull(gradeId, semester, pageable);
+        Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemesterAndDeletedAtIsNull(existingGrade.getGradeId(), semester, pageable);
 
         String chapter = switch (semester) {
             case "Học kì 1" -> "I";

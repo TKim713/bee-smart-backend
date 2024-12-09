@@ -3,6 +3,7 @@ package com.api.bee_smart_backend.service;
 import com.api.bee_smart_backend.helper.request.ChangePasswordRequest;
 import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
+import com.api.bee_smart_backend.helper.request.UserRequest;
 import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.CreateUserResponse;
 import com.api.bee_smart_backend.helper.response.UserCustomerResponse;
@@ -25,5 +26,7 @@ public interface UserService {
 
     void deactivateUser(String userId, boolean activeStatus);
 
-    CreateStudentResponse createStudentByParent(String parentId, CreateStudentRequest studentRequest);
+    CreateStudentResponse createStudentByParent(String jwtToken, CreateStudentRequest studentRequest);
+
+    UserCustomerResponse changeUserInfo(String jwtToken, UserRequest request);
 }

@@ -48,7 +48,7 @@ public class StatisticServiceImpl implements StatisticService {
         LocalDate localEndDate = LocalDate.parse(endDate, formatter);
 
         if (user.getRole() == Role.PARENT) {
-            Parent parent = (Parent) parentRepository.findByUser(user)
+            Parent parent = (Parent) parentRepository.findByUserAndDeletedAtIsNull(user)
                     .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản phụ huynh", HttpStatus.NOT_FOUND));
             List<Student> students = studentRepository.findByParent(parent);
 

@@ -8,6 +8,7 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.ChangePasswordRequest;
 import com.api.bee_smart_backend.helper.request.CreateStudentRequest;
 import com.api.bee_smart_backend.helper.request.CreateUserRequest;
+import com.api.bee_smart_backend.helper.request.UserRequest;
 import com.api.bee_smart_backend.helper.response.*;
 import com.api.bee_smart_backend.model.*;
 import com.api.bee_smart_backend.repository.*;
@@ -98,14 +99,15 @@ public class UserServiceImpl implements UserService {
         } else if (role == Role.STUDENT) {
             Student student = Student.builder()
                     .fullName(userRequest.getFullName())
-                    .district("")
-                    .city("")
+                    .district(userRequest.getDistrict())
+                    .city(userRequest.getCity())
                     .dateOfBirth(LocalDate.of(2000, 1, 1))
                     .phone("")
                     .address("")
                     .user(savedUser)
-                    .grade("")
+                    .grade(userRequest.getGrade())
                     .className("")
+                    .school(userRequest.getSchool())
                     .createdAt(now)
                     .build();
 
@@ -153,14 +155,16 @@ public class UserServiceImpl implements UserService {
             token.setDeletedAt(now);
             tokenRepository.save(token);
 
-            Statistic statistic = Statistic.builder()
-                    .user(user)
-                    .numberOfQuestionsAnswered(0)
-                    .timeSpentLearning(0)
-                    .numberOfQuizzesDone(0)
-                    .timeSpentDoingQuizzes(0).build();
+            if (user.getRole() == Role.STUDENT || user.getRole() == Role.PARENT) {
+                Statistic statistic = Statistic.builder()
+                        .user(user)
+                        .numberOfQuestionsAnswered(0)
+                        .timeSpentLearning(0)
+                        .numberOfQuizzesDone(0)
+                        .timeSpentDoingQuizzes(0).build();
 
-            statisticRepository.save(statistic);
+                statisticRepository.save(statistic);
+            }
 
         } else {
             throw  new CustomException("Liên kết xác thực hết hạn hoặc không hợp lệ", HttpStatus.NOT_FOUND);
@@ -170,10 +174,10 @@ public class UserServiceImpl implements UserService {
     @Override
     public boolean changePassword(String tokenStr, ChangePasswordRequest changePasswordRequest) {
         Token token = tokenRepository.findByAccessToken(tokenStr)
-                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
         String username = jwtTokenUtil.getUsernameFromToken(token.getAccessToken());
         User user = userRepository.findByUsernameAndDeletedAtIsNull(username)
-                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         if (!passwordEncoder.matches(changePasswordRequest.getOldPassword(), user.getPassword())) {
             throw new CustomException("Mật khẩu cũ không trùng khớp", HttpStatus.BAD_REQUEST);
@@ -233,6 +237,11 @@ public class UserServiceImpl implements UserService {
             response.setGrade(student.getGrade());
             response.setClassName(student.getClassName());
             response.setSchool(student.getSchool());
+
+            if (student.getParent() != null) {
+                response.setPhone(student.getParent().getPhone());
+                response.setEmail(student.getParent().getUser().getEmail());
+            }
         }
 
         return response;
@@ -273,8 +282,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public CreateStudentResponse createStudentByParent(String parentId, CreateStudentRequest studentRequest) {
-        Parent parent = parentRepository.findById(parentId)
+    public CreateStudentResponse createStudentByParent(String jwtToken, CreateStudentRequest studentRequest) {
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
+        Parent parent = parentRepository.findByUserAndDeletedAtIsNull(token.getUser())
                 .orElseThrow(() -> new CustomException("Không tìm thấy phụ huynh", HttpStatus.NOT_FOUND));
 
         Optional<User> existingUsername = userRepository.findByUsernameAndDeletedAtIsNull(studentRequest.getUsername());
@@ -323,5 +335,55 @@ public class UserServiceImpl implements UserService {
                 .timeSpentDoingQuizzes(0).build();
 
         return mapData.mapOne(savedUser, CreateStudentResponse.class);
+    }
+
+    @Override
+    public UserCustomerResponse changeUserInfo(String jwtToken, UserRequest request) {
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
+        User user = userRepository.findById(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        Customer customer = customerRepository.findByUserAndDeletedAtIsNull(token.getUser())
+                .orElseThrow(() -> new CustomException("Không tìm thấy khách hàng", HttpStatus.NOT_FOUND));
+
+        customer.setFullName(request.getFullName());
+        customer.setDistrict(request.getDistrict());
+        customer.setCity(request.getCity());
+        customer.setDateOfBirth(request.getDateOfBirth());
+        customer.setAddress(request.getAddress());
+
+        if (customer instanceof Student student) {
+            student.setClassName(request.getClassName());
+            student.setSchool(request.getSchool());
+        }
+
+        userRepository.save(user);
+        customerRepository.save(customer);
+
+        UserCustomerResponse response = UserCustomerResponse.builder()
+                .fullName(customer.getFullName())
+                .username(user.getUsername())
+                .role(user.getRole().name())
+                .district(customer.getDistrict())
+                .city(customer.getCity())
+                .dateOfBirth(customer.getDateOfBirth())
+                .phone(customer.getPhone())
+                .email(user.getEmail())
+                .address(customer.getAddress())
+                .build();
+
+        if (customer instanceof Student student) {
+            response.setGrade(student.getGrade());
+            response.setClassName(student.getClassName());
+            response.setSchool(student.getSchool());
+
+            if (student.getParent() != null) {
+                response.setPhone(student.getParent().getPhone()); // Use parent's phone if student has a parent
+            }
+        }
+
+        return response;
     }
 }

@@ -7,5 +7,5 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.Optional;
 
 public interface ParentRepository extends MongoRepository<Parent, String> {
-    Optional<Object> findByUser(User user);
+    Optional<Parent> findByUserAndDeletedAtIsNull(User user);
 }

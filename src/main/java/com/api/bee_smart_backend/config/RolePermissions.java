@@ -4,7 +4,9 @@ public class RolePermissions {
 
     // Roles that can access all APIs
     public static final String[] ALL_API_ROLES = {
-            "SYSTEM_ADMIN"
+            "SYSTEM_ADMIN",
+            "STUDENT",
+            "PARENT"
     };
 
     // Roles for customer APIs
@@ -15,5 +17,9 @@ public class RolePermissions {
 
     public static final String[] PARENT_ROLES = {
             "PARENT"
+    };
+
+    public static final String[] ADMIN_ROLES = {
+            "SYSTEM_ADMIN"
     };
 }

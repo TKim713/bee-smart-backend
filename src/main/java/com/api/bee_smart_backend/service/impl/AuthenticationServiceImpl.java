@@ -2,14 +2,18 @@ package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.JwtTokenUtil;
 import com.api.bee_smart_backend.config.JwtUserDetailsService;
+import com.api.bee_smart_backend.helper.enums.Role;
 import com.api.bee_smart_backend.helper.enums.TokenType;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.JwtRequest;
 import com.api.bee_smart_backend.helper.request.ResetPasswordRequest;
 import com.api.bee_smart_backend.helper.request.VerifyOtpRequest;
 import com.api.bee_smart_backend.helper.response.JwtResponse;
+import com.api.bee_smart_backend.model.Customer;
+import com.api.bee_smart_backend.model.Student;
 import com.api.bee_smart_backend.model.Token;
 import com.api.bee_smart_backend.model.User;
+import com.api.bee_smart_backend.repository.StudentRepository;
 import com.api.bee_smart_backend.repository.TokenRepository;
 import com.api.bee_smart_backend.repository.UserRepository;
 import com.api.bee_smart_backend.service.AuthenticationService;
@@ -39,6 +43,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private UserRepository userRepository;
     @Autowired
     private TokenRepository tokenRepository;
+    @Autowired
+    private StudentRepository studentRepository;
     @Autowired
     private EmailService emailService;
 
@@ -75,6 +81,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new CustomException(e.getMessage() != null ? e.getMessage() : "Authentication failed", HttpStatus.BAD_REQUEST);
         }
 
+        String grade = null;
+        if (user.getRole() == Role.STUDENT) {
+            Student student = studentRepository.findByUserAndDeletedAtIsNull(user)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy thông tin học sinh", HttpStatus.NOT_FOUND));
+            grade = student.getGrade();
+        }
+
         UserDetails userDetails = jwtUserDetailsService.loadUserByUsername(authenticationRequest.getUsername());
         String accessToken = jwtTokenUtil.generateToken(userDetails);
         String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
@@ -97,6 +110,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .userId(user.getUserId())
                 .username(user.getUsername())
                 .role(user.getRole().toString())
+                .grade(grade)
                 .build();
     }
 

@@ -76,14 +76,14 @@ public class TopicController {
         }
     }
 
-    @GetMapping("/grade/{gradeId}/semester")
+    @GetMapping
     public ResponseEntity<ResponseObject<Map<String, Object>>> getTopicsByGradeAndSemester(
-            @PathVariable String gradeId,
+            @RequestParam String grade,
             @RequestParam String semester,
             @RequestParam(required = false) String page,
             @RequestParam(required = false) String size) {
         try {
-            Map<String, Object> result = topicService.getTopicsByGradeAndSemester(gradeId, semester, page, size);
+            Map<String, Object> result = topicService.getTopicsByGradeAndSemester(grade, semester, page, size);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy chủ đề thành công", result));

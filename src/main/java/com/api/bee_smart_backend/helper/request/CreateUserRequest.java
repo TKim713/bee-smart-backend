@@ -22,4 +22,9 @@ public class CreateUserRequest {
     @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*[@$!%*#?&]).*$", message = "Mật khẩu phải chứa ít nhất một chữ thường, một chữ hoa và một ký tự đặc biệt (@$!%*#?&)")
     private String password;
     private String role;
+
+    private String district;
+    private String city;
+    private String grade;
+    private String school;
 }
