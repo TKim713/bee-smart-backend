@@ -11,7 +11,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.YearMonth;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/statistics")
@@ -53,4 +55,19 @@ public class StatisticController {
 //                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu: " + e.getMessage(), null));
 //        }
 //    }
+
+    @GetMapping("/view-lesson-by-month")
+    public ResponseEntity<ResponseObject<Map<String, Map<String, Integer>>>> getViewLessonByMonth(
+            @RequestParam(required = false) String date
+    ) {
+        try {
+            Map<String, Map<String, Integer>> chartData = statisticService.getViewLessonByMonth(date);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu biểu đồ thành công", chartData));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu biểu đồ: " + e.getMessage(), null));
+        }
+    }
 }

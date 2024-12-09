@@ -6,7 +6,9 @@ import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Topic;
+import com.api.bee_smart_backend.model.view.LessonView;
 import com.api.bee_smart_backend.repository.LessonRepository;
+import com.api.bee_smart_backend.repository.LessonViewRepository;
 import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.LessonService;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +23,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.*;
 
 @Service
 @Slf4j
@@ -33,9 +36,10 @@ public class LessonServiceImpl implements LessonService {
     private LessonRepository lessonRepository;
     @Autowired
     private TopicRepository topicRepository;
+    @Autowired
+    private LessonViewRepository lessonViewRepository;
 
     private final MapData mapData;
-
     private final Instant now = Instant.now();
 
     @Override
@@ -212,10 +216,28 @@ public class LessonServiceImpl implements LessonService {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
 
+        ZonedDateTime vietnamTime = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+        LocalDate today = vietnamTime.toLocalDate();
+        Optional<LessonView> existingView = lessonViewRepository.findByLessonIdAndCreatedAt(lessonId, today);
+
+        if (existingView.isPresent()) {
+            LessonView view = existingView.get();
+            view.setViewCount(view.getViewCount() + 1);
+            view.setUpdatedAt(now);
+            lessonViewRepository.save(view);
+        } else {
+            LessonView newView = new LessonView();
+            newView.setLessonId(lessonId);
+            newView.setGradeName(lesson.getTopic().getGrade().getGradeName());
+            newView.setViewCount(1);
+            newView.setCreatedAt(today);
+            lessonViewRepository.save(newView);
+        }
+
         if (lesson.getLessonNumber() == 1 || isAuthenticated()) {
             return mapData.mapOne(lesson, LessonResponse.class);
         } else {
-            throw new CustomException("Unauthorized access. Please log in to continue learning.", HttpStatus.UNAUTHORIZED);
+            throw new CustomException("Vui lòng đăng nhập để tiếp tục xem bài học.", HttpStatus.UNAUTHORIZED);
         }
     }
 

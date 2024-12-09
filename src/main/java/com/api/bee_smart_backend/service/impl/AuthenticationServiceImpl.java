@@ -9,7 +9,6 @@ import com.api.bee_smart_backend.helper.request.JwtRequest;
 import com.api.bee_smart_backend.helper.request.ResetPasswordRequest;
 import com.api.bee_smart_backend.helper.request.VerifyOtpRequest;
 import com.api.bee_smart_backend.helper.response.JwtResponse;
-import com.api.bee_smart_backend.model.Customer;
 import com.api.bee_smart_backend.model.Student;
 import com.api.bee_smart_backend.model.Token;
 import com.api.bee_smart_backend.model.User;
