@@ -1,4 +1,4 @@
-package com.api.bee_smart_backend.model.view;
+package com.api.bee_smart_backend.model.record;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +17,7 @@ import java.time.LocalDate;
 @NoArgsConstructor
 @AllArgsConstructor
 @Document(collection = "lesson_view")
-public class LessonView {
+public class LessonRecord {
     @Id
     private String lessonViewId;
 

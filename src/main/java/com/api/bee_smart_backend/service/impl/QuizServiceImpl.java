@@ -9,6 +9,7 @@ import com.api.bee_smart_backend.helper.request.UserAnswer;
 import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.QuestionResult;
 import com.api.bee_smart_backend.model.*;
+import com.api.bee_smart_backend.model.record.QuizRecord;
 import com.api.bee_smart_backend.repository.*;
 import com.api.bee_smart_backend.service.QuizService;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 @Service
@@ -47,6 +51,8 @@ public class QuizServiceImpl implements QuizService {
 
     private final MapData mapData;
     private final Instant now = Instant.now();
+    ZonedDateTime vietnamTime = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
+    LocalDate today = vietnamTime.toLocalDate();
 
     @Override
     public QuizResponse getQuizById(String quizId) {
@@ -226,10 +232,12 @@ public class QuizServiceImpl implements QuizService {
         QuizRecord quizRecord = QuizRecord.builder()
                 .user(user)
                 .quiz(quiz)
+                .gradeName(quiz.getLesson().getTopic().getGrade().getGradeName())
                 .totalQuestions(allQuestions.size())
                 .correctAnswers(correctAnswersCount)
                 .points(points)
                 .timeSpent(request.getTimeSpent())
+                .submitDate(today)
                 .createdAt(now)
                 .build();
 

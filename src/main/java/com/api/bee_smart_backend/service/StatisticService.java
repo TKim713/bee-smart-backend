@@ -8,4 +8,10 @@ public interface StatisticService {
     StatisticResponse getAggregatedStatisticByUserAndDateRange(String userId, String startDate, String endDate);
 
     Map<String, Map<String, Integer>> getViewLessonByMonth(String date);
+
+    Map<String, Object> getListQuizRecord(String page, String size, String search);
+
+    Map<String, Double> getQuizStatistics();
+
+    Map<String, Map<String, Integer>> getQuizByMonth(String date);
 }

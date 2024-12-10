@@ -6,9 +6,9 @@ import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Topic;
-import com.api.bee_smart_backend.model.view.LessonView;
+import com.api.bee_smart_backend.model.record.LessonRecord;
 import com.api.bee_smart_backend.repository.LessonRepository;
-import com.api.bee_smart_backend.repository.LessonViewRepository;
+import com.api.bee_smart_backend.repository.LessonRecordRepository;
 import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.LessonService;
 import lombok.RequiredArgsConstructor;
@@ -37,7 +37,7 @@ public class LessonServiceImpl implements LessonService {
     @Autowired
     private TopicRepository topicRepository;
     @Autowired
-    private LessonViewRepository lessonViewRepository;
+    private LessonRecordRepository lessonRecordRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
@@ -224,20 +224,20 @@ public class LessonServiceImpl implements LessonService {
 
         ZonedDateTime vietnamTime = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         LocalDate today = vietnamTime.toLocalDate();
-        Optional<LessonView> existingView = lessonViewRepository.findByLessonIdAndCreatedAt(lessonId, today);
+        Optional<LessonRecord> existingView = lessonRecordRepository.findByLessonIdAndCreatedAt(lessonId, today);
 
         if (existingView.isPresent()) {
-            LessonView view = existingView.get();
+            LessonRecord view = existingView.get();
             view.setViewCount(view.getViewCount() + 1);
             view.setUpdatedAt(now);
-            lessonViewRepository.save(view);
+            lessonRecordRepository.save(view);
         } else {
-            LessonView newView = new LessonView();
+            LessonRecord newView = new LessonRecord();
             newView.setLessonId(lessonId);
             newView.setGradeName(lesson.getTopic().getGrade().getGradeName());
             newView.setViewCount(1);
             newView.setCreatedAt(today);
-            lessonViewRepository.save(newView);
+            lessonRecordRepository.save(newView);
         }
 
         if (lesson.getLessonNumber() == 1 || isAuthenticated()) {
