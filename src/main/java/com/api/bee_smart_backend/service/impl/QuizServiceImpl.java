@@ -190,7 +190,7 @@ public class QuizServiceImpl implements QuizService {
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
 
         Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new CustomException("Quiz not found with ID: " + quizId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy quiz với ID: " + quizId, HttpStatus.NOT_FOUND));
 
         List<Question> allQuestions = questionRepository.findByQuizAndDeletedAtIsNull(quiz);
         int correctAnswersCount = 0;
@@ -200,9 +200,18 @@ public class QuizServiceImpl implements QuizService {
             Question question = allQuestions.stream()
                     .filter(q -> q.getQuestionId().equals(userAnswer.getQuestionId()))
                     .findFirst()
-                    .orElseThrow(() -> new CustomException("Question not found with ID: " + userAnswer.getQuestionId(), HttpStatus.BAD_REQUEST));
+                    .orElseThrow(() -> new CustomException("Không tìm thấy câu hỏi với ID: " + userAnswer.getQuestionId(), HttpStatus.BAD_REQUEST));
 
-            boolean isCorrect = question.getCorrectAnswerIndex() == userAnswer.getSelectedAnswerIndex();
+            boolean isCorrect = switch (question.getQuestionType()) {
+                case MULTIPLE_CHOICE -> question.getCorrectAnswer().equals(userAnswer.getSelectedAnswer());
+                case MULTI_SELECT ->
+                        new HashSet<>(question.getCorrectAnswers()).containsAll(userAnswer.getSelectedAnswers())
+                                && new HashSet<>(userAnswer.getSelectedAnswers()).containsAll(question.getCorrectAnswers());
+                case FILL_IN_THE_BLANK -> question.getAnswers().stream()
+                        .anyMatch(answer -> answer.equalsIgnoreCase(userAnswer.getSelectedAnswer()));
+                default -> throw new CustomException("Loại câu hỏi không hợp lệ", HttpStatus.BAD_REQUEST);
+            };
+
             if (isCorrect) {
                 correctAnswersCount++;
             }
@@ -212,8 +221,8 @@ public class QuizServiceImpl implements QuizService {
                     .content(question.getContent())
                     .image(question.getImage())
                     .options(question.getOptions())
-                    .correctAnswerIndex(question.getCorrectAnswerIndex())
-                    .userAnswerIndex(userAnswer.getSelectedAnswerIndex())
+                    .correctAnswer(question.getCorrectAnswer())
+                    .userAnswer(userAnswer.getSelectedAnswer())
                     .isCorrect(isCorrect)
                     .build());
         }

@@ -16,5 +16,8 @@ public class QuestionResponse {
     private String content;
     private String image;
     private List<String> options;
-    private int correctAnswerIndex;
+    private String questionType;
+    private String correctAnswer;
+    private List<String> correctAnswers;
+    private List<String> answers;
 }

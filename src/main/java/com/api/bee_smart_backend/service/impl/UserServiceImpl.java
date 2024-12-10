@@ -146,7 +146,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void verifyEmail(String tokenStr) {
         Token token = tokenRepository.findByAccessToken(tokenStr)
-                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
         if (token.getExpirationTime().isAfter(now) && !token.isRevoked()) {
             User user = token.getUser();
             user.setEnabled(true);

@@ -5,11 +5,14 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Data
 public class UserAnswer {
     private String questionId;
-    private int selectedAnswerIndex;
+    private String selectedAnswer;
+    private List<String> selectedAnswers;
 }

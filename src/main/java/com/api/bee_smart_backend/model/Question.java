@@ -1,5 +1,6 @@
 package com.api.bee_smart_backend.model;
 
+import com.api.bee_smart_backend.helper.enums.QuestionType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,15 +26,22 @@ public class Question {
     private String content;
     private String image;
     private List<String> options;
-    private int correctAnswerIndex;
+
+    private QuestionType questionType;
+
+    private String correctAnswer;
+    private List<String> correctAnswers;
+    private List<String> answers;
 
     @DBRef
     private Quiz quiz;
 
     @CreatedDate
     private Instant createdAt;
+
     @LastModifiedDate
     private Instant updatedAt;
+
     @LastModifiedDate
     private Instant deletedAt;
 }

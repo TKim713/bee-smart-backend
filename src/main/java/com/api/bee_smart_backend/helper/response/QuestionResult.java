@@ -16,7 +16,9 @@ public class QuestionResult {
     private String content;
     private String image;
     private List<String> options;
-    private int correctAnswerIndex;
-    private int userAnswerIndex;
+    private String correctAnswer;
+    private List<String> correctAnswers;
+    private List<String> answers;
+    private String userAnswer;
     private boolean isCorrect;
 }

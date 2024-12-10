@@ -16,7 +16,7 @@ import java.time.LocalDate;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "lesson_view")
+@Document(collection = "lesson_record")
 public class LessonRecord {
     @Id
     private String lessonViewId;

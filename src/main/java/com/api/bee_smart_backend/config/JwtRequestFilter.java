@@ -52,7 +52,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         } catch (ExpiredJwtException ex) {
             response.setStatus(HttpStatus.UNAUTHORIZED.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-            ResponseObject responseObject = new ResponseObject(401, "Token đã hết hạn", null);
+            ResponseObject responseObject = new ResponseObject(401, "Token has expired", null);
             response.getWriter().write(new ObjectMapper().writeValueAsString(responseObject));
         } catch (Exception ex) {
             response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());

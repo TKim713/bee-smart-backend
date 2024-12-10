@@ -1,6 +1,7 @@
 package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.MapData;
+import com.api.bee_smart_backend.helper.enums.QuestionType;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.QuestionRequest;
 import com.api.bee_smart_backend.helper.response.QuestionResponse;
@@ -43,13 +44,15 @@ public class QuestionServiceImpl implements QuestionService {
         Question question = Question.builder()
                 .content(request.getContent())
                 .image(request.getImage())
-                .options(request.getOptions())
-                .correctAnswerIndex(request.getCorrectAnswerIndex())
+                .questionType(QuestionType.valueOf(request.getQuestionType().toUpperCase()))
                 .quiz(quiz)
-                .createdAt(now)
+                .createdAt(Instant.now())
                 .build();
 
+        updateQuestionFields(question, request);
+
         Question savedQuestion = questionRepository.save(question);
+
         quiz.addQuestion(savedQuestion);
         quizRepository.save(quiz);
 
@@ -63,9 +66,10 @@ public class QuestionServiceImpl implements QuestionService {
 
         question.setContent(request.getContent());
         question.setImage(request.getImage());
-        question.setOptions(request.getOptions());
-        question.setCorrectAnswerIndex(request.getCorrectAnswerIndex());
+        question.setQuestionType(QuestionType.valueOf(request.getQuestionType().toUpperCase()));
         question.setUpdatedAt(now);
+
+        updateQuestionFields(question, request);
 
         Question updatedQuestion = questionRepository.save(question);
 
@@ -94,6 +98,7 @@ public class QuestionServiceImpl implements QuestionService {
 
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
 
+        // Tìm quiz theo quizId
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy quiz với ID: " + quizId, HttpStatus.NOT_FOUND));
 
@@ -110,8 +115,11 @@ public class QuestionServiceImpl implements QuestionService {
                         .questionId(question.getQuestionId())
                         .content(question.getContent())
                         .image(question.getImage())
+                        .questionType(question.getQuestionType().toString())
                         .options(question.getOptions())
-                        .correctAnswerIndex(question.getCorrectAnswerIndex())
+                        .correctAnswer(question.getCorrectAnswer())
+                        .correctAnswers(question.getCorrectAnswers())
+                        .answers(question.getAnswers())
                         .build())
                 .toList();
 
@@ -123,5 +131,28 @@ public class QuestionServiceImpl implements QuestionService {
         response.put("questions", questionResponses);
 
         return response;
+    }
+
+    private void updateQuestionFields(Question question, QuestionRequest request) {
+        QuestionType questionType = QuestionType.valueOf(request.getQuestionType().toUpperCase());
+
+        switch (questionType) {
+            case MULTIPLE_CHOICE:
+                question.setOptions(request.getOptions());
+                question.setCorrectAnswer(request.getCorrectAnswer());
+                break;
+
+            case MULTI_SELECT:
+                question.setOptions(request.getOptions());
+                question.setCorrectAnswers(request.getCorrectAnswers());
+                break;
+
+            case FILL_IN_THE_BLANK:
+                question.setAnswers(request.getAnswers());
+                break;
+
+            default:
+                throw new CustomException("Loại câu hỏi không hợp lệ", HttpStatus.BAD_REQUEST);
+        }
     }
 }
