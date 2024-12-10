@@ -81,6 +81,7 @@ public class TopicServiceImpl implements TopicService {
                                             .lessonNumber(lesson.getLessonNumber())
                                             .description(lesson.getDescription())
                                             .content(lesson.getContent())
+                                            .viewCount(lesson.getViewCount())
                                             .build();
                                 })
                                 .toList())

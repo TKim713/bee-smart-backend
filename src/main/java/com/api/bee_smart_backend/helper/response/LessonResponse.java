@@ -12,4 +12,5 @@ public class LessonResponse {
     private int lessonNumber;
     private String description;
     private String content;
+    private int viewCount;
 }

@@ -12,6 +12,7 @@ import java.time.LocalDate;
 @Builder
 @Data
 public class UserCustomerResponse {
+    private String userId;
     private String fullName;
     private String username;
     private String role;

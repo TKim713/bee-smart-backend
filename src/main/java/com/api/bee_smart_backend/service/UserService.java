@@ -8,6 +8,7 @@ import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.CreateUserResponse;
 import com.api.bee_smart_backend.helper.response.UserCustomerResponse;
 import com.api.bee_smart_backend.helper.response.UserResponse;
+import com.api.bee_smart_backend.model.Student;
 
 import java.util.List;
 
@@ -29,4 +30,6 @@ public interface UserService {
     CreateStudentResponse createStudentByParent(String jwtToken, CreateStudentRequest studentRequest);
 
     UserCustomerResponse changeUserInfo(String jwtToken, UserRequest request);
+
+    List<UserCustomerResponse> getListStudentByParentUser(String jwtToken);
 }

@@ -21,6 +21,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -114,6 +115,7 @@ public class UserServiceImpl implements UserService {
             customerRepository.save(student);
         }
 
+        Instant tokenExpirationTime = Instant.now().plus(Duration.ofMinutes(10));
         String tokenStr = UUID.randomUUID().toString();
 
         Token token = Token.builder()
@@ -122,6 +124,7 @@ public class UserServiceImpl implements UserService {
                 .expired(false)
                 .revoked(false)
                 .user(savedUser)
+                .expirationTime(tokenExpirationTime)
                 .createdAt(now)
                 .build();
 
@@ -144,7 +147,7 @@ public class UserServiceImpl implements UserService {
     public void verifyEmail(String tokenStr) {
         Token token = tokenRepository.findByAccessToken(tokenStr)
                 .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
-        if (!token.isExpired() && !token.isRevoked()) {
+        if (token.getExpirationTime().isAfter(now) && !token.isRevoked()) {
             User user = token.getUser();
             user.setEnabled(true);
             userRepository.save(user);
@@ -155,7 +158,7 @@ public class UserServiceImpl implements UserService {
             token.setDeletedAt(now);
             tokenRepository.save(token);
 
-            if (user.getRole() == Role.STUDENT || user.getRole() == Role.PARENT) {
+            if (user.getRole() == Role.STUDENT) {
                 Statistic statistic = Statistic.builder()
                         .user(user)
                         .numberOfQuestionsAnswered(0)
@@ -214,37 +217,15 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserCustomerResponse getUserInfo(String jwtToken) {
         Token token = tokenRepository.findByAccessToken(jwtToken)
-                .orElseThrow(() -> new CustomException("Token not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
         User user = userRepository.findById(token.getUser().getUserId())
-                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         Customer customer = customerRepository.findByUserAndDeletedAtIsNull(token.getUser())
-                .orElseThrow(() -> new CustomException("Customer not found for user", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Không tìm thấy khách hàng", HttpStatus.NOT_FOUND));
 
-        UserCustomerResponse response = UserCustomerResponse.builder()
-                .fullName(customer.getFullName())
-                .username(user.getUsername())
-                .role(user.getRole().name())
-                .district(customer.getDistrict())
-                .city(customer.getCity())
-                .dateOfBirth(customer.getDateOfBirth())
-                .phone(customer.getPhone())
-                .email(user.getEmail())
-                .address(customer.getAddress())
-                .build();
-
-        if (customer instanceof Student student) {
-            response.setGrade(student.getGrade());
-            response.setClassName(student.getClassName());
-            response.setSchool(student.getSchool());
-
-            if (student.getParent() != null) {
-                response.setPhone(student.getParent().getPhone());
-                response.setEmail(student.getParent().getUser().getEmail());
-            }
-        }
-
-        return response;
+        return mapCustomerToUserCustomerResponse(customer);
     }
 
     @Override
@@ -301,7 +282,7 @@ public class UserServiceImpl implements UserService {
         String password = passwordEncoder.encode(studentRequest.getPassword());
         User user = User.builder()
                 .username(studentRequest.getUsername())
-                .email("")
+                .email(parent.getUser().getEmail())
                 .password(password)
                 .role(Role.valueOf(studentRequest.getRole()))
                 .enabled(true)
@@ -316,7 +297,7 @@ public class UserServiceImpl implements UserService {
                 .district("")
                 .city("")
                 .dateOfBirth(LocalDate.of(2000, 1, 1))
-                .phone("")
+                .phone(parent.getPhone())
                 .address("")
                 .user(savedUser)
                 .grade(studentRequest.getGrade())
@@ -325,7 +306,10 @@ public class UserServiceImpl implements UserService {
                 .school("")
                 .build();
 
-        studentRepository.save(student);
+        Student savedStudent = studentRepository.save(student);
+
+        parent.getStudents().add(savedStudent);
+        parentRepository.save(parent);
 
         Statistic statistic = Statistic.builder()
                 .user(savedUser)
@@ -360,9 +344,28 @@ public class UserServiceImpl implements UserService {
         }
 
         userRepository.save(user);
-        customerRepository.save(customer);
+        Customer savedCustomer = customerRepository.save(customer);
 
-        UserCustomerResponse response = UserCustomerResponse.builder()
+        return mapCustomerToUserCustomerResponse(savedCustomer);
+    }
+
+    @Override
+    public List<UserCustomerResponse> getListStudentByParentUser(String jwtToken) {
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
+        Parent parent = parentRepository.findByUserAndDeletedAtIsNull(token.getUser())
+                .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản phụ huynh", HttpStatus.NOT_FOUND));
+
+        return parent.getStudents().stream()
+                .map(this::mapCustomerToUserCustomerResponse)
+                .collect(Collectors.toList());
+    }
+
+    private UserCustomerResponse mapCustomerToUserCustomerResponse(Customer customer) {
+        User user = customer.getUser();
+        UserCustomerResponse.UserCustomerResponseBuilder responseBuilder = UserCustomerResponse.builder()
+                .userId(user.getUserId())
                 .fullName(customer.getFullName())
                 .username(user.getUsername())
                 .role(user.getRole().name())
@@ -371,19 +374,14 @@ public class UserServiceImpl implements UserService {
                 .dateOfBirth(customer.getDateOfBirth())
                 .phone(customer.getPhone())
                 .email(user.getEmail())
-                .address(customer.getAddress())
-                .build();
+                .address(customer.getAddress());
 
         if (customer instanceof Student student) {
-            response.setGrade(student.getGrade());
-            response.setClassName(student.getClassName());
-            response.setSchool(student.getSchool());
-
-            if (student.getParent() != null) {
-                response.setPhone(student.getParent().getPhone()); // Use parent's phone if student has a parent
-            }
+            responseBuilder.grade(student.getGrade())
+                    .className(student.getClassName())
+                    .school(student.getSchool());
         }
 
-        return response;
+        return responseBuilder.build();
     }
 }

@@ -1,7 +1,6 @@
 package com.api.bee_smart_backend.controller;
 
 import com.api.bee_smart_backend.helper.exception.CustomException;
-import com.api.bee_smart_backend.helper.response.QuizCountByGradeResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.helper.response.StatisticResponse;
 import com.api.bee_smart_backend.service.QuizRecordService;
@@ -11,8 +10,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.YearMonth;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -23,15 +20,15 @@ public class StatisticController {
     @Autowired
     private QuizRecordService quizRecordService;
 
-    @GetMapping("/aggregate")
+    @GetMapping("/user/{userId}/aggregate")
     public ResponseEntity<ResponseObject<StatisticResponse>> getAggregatedStatisticsByDateRange(
-            @RequestHeader("Authorization") String token,
+            @PathVariable("userId") String userId,
             @RequestParam("startDate") String startDate,
             @RequestParam("endDate") String endDate) {
-        String jwtToken = token.replace("Bearer ", "");
         try {
-            StatisticResponse response = statisticService.getAggregatedStatisticByUserAndDateRange(jwtToken, startDate, endDate);
-            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu thống kê thành công", response));
+            StatisticResponse response = statisticService.getAggregatedStatisticByUserAndDateRange(userId, startDate, endDate);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu thống kê thành công", response));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
@@ -56,7 +53,7 @@ public class StatisticController {
 //        }
 //    }
 
-    @GetMapping("/view-lesson-by-month")
+    @GetMapping("/admin/view-lesson-by-month")
     public ResponseEntity<ResponseObject<Map<String, Map<String, Integer>>>> getViewLessonByMonth(
             @RequestParam(required = false) String date
     ) {

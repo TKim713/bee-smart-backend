@@ -1,6 +1,7 @@
 package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.MapData;
+import com.api.bee_smart_backend.helper.enums.Role;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.QuizRequest;
 import com.api.bee_smart_backend.helper.request.SubmissionRequest;
@@ -221,8 +222,6 @@ public class QuizServiceImpl implements QuizService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
         User user = userRepository.findById(token.getUser().getUserId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-//        Statistic statistic = statisticRepository.findByUserAndDeletedAtIsNull(user)
-//                .orElseThrow(() -> new CustomException("Không tìm thấy thống kê người dùng", HttpStatus.NOT_FOUND));
 
         QuizRecord quizRecord = QuizRecord.builder()
                 .user(user)
@@ -236,12 +235,16 @@ public class QuizServiceImpl implements QuizService {
 
         quizRecordRepository.save(quizRecord);
 
-//        statistic.setUpdatedAt(Instant.now());
-//        statistic.setNumberOfQuestionsAnswered(statistic.getNumberOfQuestionsAnswered() + request.getAnswers().size());
-//        statistic.setNumberOfQuizzesDone(statistic.getNumberOfQuizzesDone() + 1);
-//        statistic.setTimeSpentDoingQuizzes(statistic.getTimeSpentDoingQuizzes() + request.getTimeSpent());
-//
-//        statisticRepository.save(statistic);
+        if (user.getRole() == Role.STUDENT) {
+            Statistic statistic = statisticRepository.findByUserAndDeletedAtIsNull(user)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy thống kê người dùng", HttpStatus.NOT_FOUND));
+            statistic.setUpdatedAt(now);
+            statistic.setNumberOfQuestionsAnswered(statistic.getNumberOfQuestionsAnswered() + request.getAnswers().size());
+            statistic.setNumberOfQuizzesDone(statistic.getNumberOfQuizzesDone() + 1);
+            statistic.setTimeSpentDoingQuizzes(statistic.getTimeSpentDoingQuizzes() + request.getTimeSpent());
+
+            statisticRepository.save(statistic);
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalQuestions", allQuestions.size());

@@ -63,6 +63,7 @@ public class LessonServiceImpl implements LessonService {
                         .lessonNumber(lesson.getLessonNumber())
                         .description(lesson.getDescription())
                         .content(lesson.getContent())
+                        .viewCount(lesson.getViewCount())
                         .build())
                 .toList();
 
@@ -116,6 +117,7 @@ public class LessonServiceImpl implements LessonService {
                             .lessonName(formattedLessonName)
                             .description(lesson.getDescription())
                             .content(lesson.getContent())
+                            .viewCount(lesson.getViewCount())
                             .build();
                 })
                 .toList();
@@ -146,6 +148,7 @@ public class LessonServiceImpl implements LessonService {
                 .lessonNumber(request.getLessonNumber())
                 .description(request.getDescription())
                 .content(request.getContent())
+                .viewCount(0)
                 .topic(topic)
                 .createdAt(now)
                 .build();
@@ -215,6 +218,9 @@ public class LessonServiceImpl implements LessonService {
     public LessonResponse getLessonById(String lessonId) {
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học với ID: " + lessonId, HttpStatus.NOT_FOUND));
+
+        lesson.setViewCount(lesson.getViewCount() + 1);
+        lessonRepository.save(lesson);
 
         ZonedDateTime vietnamTime = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
         LocalDate today = vietnamTime.toLocalDate();

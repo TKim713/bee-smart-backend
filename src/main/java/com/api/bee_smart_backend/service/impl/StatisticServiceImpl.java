@@ -44,28 +44,15 @@ public class StatisticServiceImpl implements StatisticService {
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     @Override
-    public StatisticResponse getAggregatedStatisticByUserAndDateRange(String jwtToken, String startDate, String endDate) {
-        Token token = tokenRepository.findByAccessToken(jwtToken)
-                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
-        User user = userRepository.findById(token.getUser().getUserId())
+    public StatisticResponse getAggregatedStatisticByUserAndDateRange(String userId, String startDate, String endDate) {
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         List<Statistic> statistics;
         LocalDate localStartDate = LocalDate.parse(startDate, formatter);
         LocalDate localEndDate = LocalDate.parse(endDate, formatter);
 
-        if (user.getRole() == Role.PARENT) {
-            Parent parent = (Parent) parentRepository.findByUserAndDeletedAtIsNull(user)
-                    .orElseThrow(() -> new CustomException("Không tìm thấy tài khoản phụ huynh", HttpStatus.NOT_FOUND));
-            List<Student> students = studentRepository.findByParent(parent);
-
-            statistics = students.stream()
-                    .map(Student::getUser)
-                    .flatMap(studentUser -> statisticRepository.findByUserAndCreatedAtBetween(studentUser, localStartDate, localEndDate).stream())
-                    .collect(Collectors.toList());
-        } else {
-            statistics = statisticRepository.findByUserAndCreatedAtBetween(user, localStartDate, localEndDate);
-        }
+        statistics = statisticRepository.findByUserAndCreatedAtBetween(user, localStartDate, localEndDate);
 
         StatisticResponse aggregatedResponse = new StatisticResponse();
         aggregatedResponse.setNumberOfQuestionsAnswered(

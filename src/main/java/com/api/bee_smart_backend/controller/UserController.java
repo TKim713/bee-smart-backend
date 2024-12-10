@@ -8,6 +8,7 @@ import com.api.bee_smart_backend.helper.response.CreateStudentResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.helper.response.UserCustomerResponse;
 import com.api.bee_smart_backend.helper.response.UserResponse;
+import com.api.bee_smart_backend.model.Student;
 import com.api.bee_smart_backend.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -143,6 +144,23 @@ public class UserController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/parent/students")
+    public ResponseEntity<ResponseObject<List<UserCustomerResponse>>> getListStudentByParentUser(
+            @RequestHeader("Authorization") String token) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            List<UserCustomerResponse> students = userService.getListStudentByParentUser(jwtToken);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách học sinh thành công", students));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy danh sách học sinh: " + e.getMessage(), null));
         }
     }
 }

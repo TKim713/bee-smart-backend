@@ -30,6 +30,8 @@ public class Token {
     private boolean expired;
     private boolean revoked;
 
+    private Instant expirationTime;
+
     @DBRef
     private User user;
 

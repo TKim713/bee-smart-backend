@@ -25,6 +25,7 @@ public class Lesson {
 
     private String description;
     private String content;
+    private int viewCount;
 
     @DBRef
     private Topic topic;
