@@ -1,5 +1,6 @@
 package com.api.bee_smart_backend.helper.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,6 +19,7 @@ public class UserCustomerResponse {
     private String role;
     private String district;
     private String city;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate dateOfBirth;
     private String phone;
     private String email;

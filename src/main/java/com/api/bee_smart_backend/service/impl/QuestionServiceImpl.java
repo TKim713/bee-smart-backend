@@ -92,6 +92,14 @@ public class QuestionServiceImpl implements QuestionService {
     }
 
     @Override
+    public QuestionResponse getQuestionByQuestionId(String questionId) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy câu hỏi với ID: " + questionId, HttpStatus.NOT_FOUND));
+
+        return mapData.mapOne(question, QuestionResponse.class);
+    }
+
+    @Override
     public Map<String, Object> getListQuestionsByQuizId(String quizId, String page, String size, String search) {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;

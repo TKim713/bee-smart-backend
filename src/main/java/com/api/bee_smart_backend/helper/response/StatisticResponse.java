@@ -1,5 +1,6 @@
 package com.api.bee_smart_backend.helper.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +17,8 @@ public class StatisticResponse {
     private long timeSpentLearning;
     private int numberOfQuizzesDone;
     private long timeSpentDoingQuizzes;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate startDate;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "dd-MM-yyyy")
     private LocalDate endDate;
 }

@@ -46,7 +46,7 @@ public class StatisticServiceImpl implements StatisticService {
     private final QuizRecordRepository quizRecordRepository;
 
     private final MapData mapData;
-    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     @Override
     public StatisticResponse getAggregatedStatisticByUserAndDateRange(String userId, String startDate, String endDate) {
