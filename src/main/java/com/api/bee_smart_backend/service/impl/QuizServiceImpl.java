@@ -45,8 +45,6 @@ public class QuizServiceImpl implements QuizService {
     @Autowired
     private final TokenRepository tokenRepository;
     @Autowired
-    private final StatisticRepository statisticRepository;
-    @Autowired
     private final QuizRecordRepository quizRecordRepository;
 
     private final MapData mapData;
@@ -273,17 +271,6 @@ public class QuizServiceImpl implements QuizService {
                 .build();
 
         quizRecordRepository.save(quizRecord);
-
-        if (user.getRole() == Role.STUDENT) {
-            Statistic statistic = statisticRepository.findByUserAndDeletedAtIsNull(user)
-                    .orElseThrow(() -> new CustomException("Không tìm thấy thống kê người dùng", HttpStatus.NOT_FOUND));
-            statistic.setUpdatedAt(now);
-            statistic.setNumberOfQuestionsAnswered(statistic.getNumberOfQuestionsAnswered() + request.getAnswers().size());
-            statistic.setNumberOfQuizzesDone(statistic.getNumberOfQuizzesDone() + 1);
-            statistic.setTimeSpentDoingQuizzes(statistic.getTimeSpentDoingQuizzes() + request.getTimeSpent());
-
-            statisticRepository.save(statistic);
-        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalQuestions", allQuestions.size());

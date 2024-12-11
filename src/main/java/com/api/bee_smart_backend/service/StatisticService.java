@@ -11,6 +11,8 @@ public interface StatisticService {
 
     Map<String, Object> getListQuizRecord(String page, String size, String search);
 
+    Map<String, Object> getListQuizRecordByUser(String userId, String page, String size, String search);
+
     Map<String, Double> getQuizStatistics();
 
     Map<String, Map<String, Integer>> getQuizByMonth(String date);

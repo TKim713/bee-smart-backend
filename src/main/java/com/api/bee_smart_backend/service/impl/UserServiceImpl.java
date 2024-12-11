@@ -45,8 +45,6 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private final CustomerRepository customerRepository;
     @Autowired
-    private final StatisticRepository statisticRepository;
-    @Autowired
     private final EmailService emailService;
     @Autowired
     private JwtTokenUtil jwtTokenUtil;
@@ -157,17 +155,6 @@ public class UserServiceImpl implements UserService {
             token.setUpdatedAt(now);
             token.setDeletedAt(now);
             tokenRepository.save(token);
-
-            if (user.getRole() == Role.STUDENT) {
-                Statistic statistic = Statistic.builder()
-                        .user(user)
-                        .numberOfQuestionsAnswered(0)
-                        .timeSpentLearning(0)
-                        .numberOfQuizzesDone(0)
-                        .timeSpentDoingQuizzes(0).build();
-
-                statisticRepository.save(statistic);
-            }
 
         } else {
             throw  new CustomException("Liên kết xác thực hết hạn hoặc không hợp lệ", HttpStatus.NOT_FOUND);
@@ -310,13 +297,6 @@ public class UserServiceImpl implements UserService {
 
         parent.getStudents().add(savedStudent);
         parentRepository.save(parent);
-
-        Statistic statistic = Statistic.builder()
-                .user(savedUser)
-                .numberOfQuestionsAnswered(0)
-                .timeSpentLearning(0)
-                .numberOfQuizzesDone(0)
-                .timeSpentDoingQuizzes(0).build();
 
         return mapData.mapOne(savedUser, CreateStudentResponse.class);
     }

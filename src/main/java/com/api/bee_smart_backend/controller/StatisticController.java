@@ -38,21 +38,6 @@ public class StatisticController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu thống kê: " + e.getMessage(), null));
         }
     }
-//    @GetMapping("/quiz-count-by-grade")
-//    public ResponseEntity<ResponseObject<List<QuizCountByGradeResponse>>> getQuizCountByGrade() {
-//        try {
-//            List<QuizCountByGradeResponse> quizCounts = quizRecordService.getQuizCountByGrade();
-//
-//            return ResponseEntity.status(HttpStatus.OK)
-//                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy số lượng bài quiz theo lớp thành công", quizCounts));
-//        } catch (CustomException e) {
-//            return ResponseEntity.status(e.getStatus())
-//                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
-//        } catch (Exception e) {
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-//                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu: " + e.getMessage(), null));
-//        }
-//    }
 
     @GetMapping("/admin/quiz-records")
     public ResponseEntity<ResponseObject<Map<String, Object>>> getListQuizRecord(@RequestParam(name = "page", required = false) String page,
@@ -60,6 +45,23 @@ public class StatisticController {
                                                                                  @RequestParam(name = "search", required = false, defaultValue = "") String search) {
         try {
             Map<String, Object> result = statisticService.getListQuizRecord(page, size, search);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách lịch sử bài kiểm tra thành công", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/user/{userId}/quiz-records")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getListQuizRecordByUser(
+            @PathVariable String userId,
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size,
+            @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+        try {
+            Map<String, Object> result = statisticService.getListQuizRecordByUser(userId, page, size, search);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách lịch sử bài kiểm tra thành công", result.isEmpty() ? Collections.emptyMap() : result));

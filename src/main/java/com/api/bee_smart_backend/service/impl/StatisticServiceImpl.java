@@ -19,6 +19,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -31,15 +33,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class StatisticServiceImpl implements StatisticService {
     @Autowired
-    private final ParentRepository parentRepository;
-    @Autowired
-    private final StudentRepository studentRepository;
-    @Autowired
     private final UserRepository userRepository;
-    @Autowired
-    private final TokenRepository tokenRepository;
-    @Autowired
-    private final StatisticRepository statisticRepository;
     @Autowired
     private final LessonRecordRepository lessonRecordRepository;
     @Autowired
@@ -53,21 +47,22 @@ public class StatisticServiceImpl implements StatisticService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
-        List<Statistic> statistics;
         LocalDate localStartDate = LocalDate.parse(startDate, formatter);
         LocalDate localEndDate = LocalDate.parse(endDate, formatter);
 
-        statistics = statisticRepository.findByUserAndCreatedAtBetween(user, localStartDate, localEndDate);
+        LocalDateTime startOfDay = localStartDate.atStartOfDay();
+        LocalDateTime endOfDay = localEndDate.atTime(LocalTime.MAX);
+
+        List<QuizRecord> quizRecords = quizRecordRepository.findByUserAndSubmitDateBetween(user, startOfDay, endOfDay);
 
         StatisticResponse aggregatedResponse = new StatisticResponse();
         aggregatedResponse.setNumberOfQuestionsAnswered(
-                statistics.stream().mapToInt(Statistic::getNumberOfQuestionsAnswered).sum());
+                quizRecords.stream().mapToInt(QuizRecord::getTotalQuestions).sum());
         aggregatedResponse.setTimeSpentLearning(
-                statistics.stream().mapToLong(Statistic::getTimeSpentLearning).sum());
-        aggregatedResponse.setNumberOfQuizzesDone(
-                statistics.stream().mapToInt(Statistic::getNumberOfQuizzesDone).sum());
+                quizRecords.stream().mapToLong(QuizRecord::getTimeSpent).sum());
+        aggregatedResponse.setNumberOfQuizzesDone(quizRecords.size());
         aggregatedResponse.setTimeSpentDoingQuizzes(
-                statistics.stream().mapToLong(Statistic::getTimeSpentDoingQuizzes).sum());
+                quizRecords.stream().mapToLong(QuizRecord::getTimeSpent).sum());
 
         aggregatedResponse.setStartDate(localStartDate);
         aggregatedResponse.setEndDate(localEndDate);
@@ -135,6 +130,45 @@ public class StatisticServiceImpl implements StatisticService {
             quizRecordPage = quizRecordRepository.findAll(pageable);
         } else {
             quizRecordPage = quizRecordRepository.findByQuizContainingIgnoreCaseOrUserContainingIgnoreCase(search, search, pageable);
+        }
+
+        List<QuizRecordResponse> quizRecordResponses = quizRecordPage.getContent().stream()
+                .map(quizRecord -> QuizRecordResponse.builder()
+                        .recordId(quizRecord.getRecordId())
+                        .username(quizRecord.getUser().getUsername())
+                        .quizName(quizRecord.getQuiz().getTitle())
+                        .totalQuestions(quizRecord.getTotalQuestions())
+                        .correctAnswers(quizRecord.getCorrectAnswers())
+                        .points(quizRecord.getPoints())
+                        .timeSpent(quizRecord.getTimeSpent())
+                        .createdAt(quizRecord.getCreatedAt())
+                        .build())
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalItems", quizRecordPage.getTotalElements());
+        response.put("totalPages", quizRecordPage.getTotalPages());
+        response.put("currentPage", quizRecordPage.getNumber());
+        response.put("quizRecords", quizRecordResponses);
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Object> getListQuizRecordByUser(String userId, String page, String size, String search) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Page<QuizRecord> quizRecordPage;
+
+        if (search == null || search.isBlank()) {
+            quizRecordPage = quizRecordRepository.findByUser(user, pageable);
+        } else {
+            quizRecordPage = quizRecordRepository.findByUserAndQuizTitleContainingIgnoreCase(user, search, pageable);
         }
 
         List<QuizRecordResponse> quizRecordResponses = quizRecordPage.getContent().stream()
