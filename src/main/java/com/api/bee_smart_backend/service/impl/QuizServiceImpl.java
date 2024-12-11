@@ -156,15 +156,12 @@ public class QuizServiceImpl implements QuizService {
         Page<Quiz> quizPage;
 
         if (search == null || search.isBlank()) {
-            quizPage = quizRepository.findByLessonInAndDeletedAtIsNull(lessons, pageable);
+            quizPage = quizRepository.findByTopicAndDeletedAtIsNull(topic, pageable);
         } else {
-            quizPage = quizRepository.findByLessonInAndTitleContainingIgnoreCaseAndDeletedAtIsNull(lessons, search, pageable);
+            quizPage = quizRepository.findByTopicAndSearchAndDeletedAtIsNull(topic, search, pageable);
         }
 
         List<QuizResponse> quizResponses = quizPage.getContent().stream()
-                .sorted(Comparator.comparing(quiz -> quiz.getLesson().getLessonNumber()))
-                .skip((long) pageNumber * pageSize)
-                .limit(pageSize)
                 .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
                 .toList();
 
