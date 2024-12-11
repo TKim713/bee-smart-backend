@@ -6,6 +6,7 @@ import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.model.Lesson;
+import com.api.bee_smart_backend.model.Quiz;
 import com.api.bee_smart_backend.model.Topic;
 import com.api.bee_smart_backend.model.record.LessonRecord;
 import com.api.bee_smart_backend.repository.LessonRepository;
@@ -179,15 +180,25 @@ public class LessonServiceImpl implements LessonService {
                 })
                 .toList();
 
-        List<QuizResponse> quizResponses = quizRepository.findByTopicAndDeletedAtIsNull(topic, pageable).stream()
+        Page<Quiz> quizPage;
+        if (search == null || search.isBlank()) {
+            quizPage = quizRepository.findByTopicAndDeletedAtIsNull(topic, pageable);
+        } else {
+            quizPage = quizRepository.findByTopicAndSearchAndDeletedAtIsNull(topic, search, pageable);
+        }
+
+        List<QuizResponse> quizResponses = quizPage.getContent().stream()
                 .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
                 .toList();
 
-        // Build the response map
+        long totalItems = lessonPage.getTotalElements() + quizPage.getTotalElements();
+        int totalPages = Math.max(lessonPage.getTotalPages(), quizPage.getTotalPages());
+        int currentPage = Math.max(lessonPage.getNumber(), quizPage.getNumber());
+
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalItems", lessonPage.getTotalElements());
-        response.put("totalPages", lessonPage.getTotalPages());
-        response.put("currentPage", lessonPage.getNumber());
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
+        response.put("currentPage", currentPage);
         response.put("lessons", lessonResponses);
         response.put("quizzes", quizResponses);
 
