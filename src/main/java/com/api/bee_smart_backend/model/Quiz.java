@@ -29,6 +29,8 @@ public class Quiz {
 
     @DBRef
     private Lesson lesson;
+    @DBRef
+    private Topic topic;
 
     @DBRef
     private List<Question> questions = new ArrayList<>();

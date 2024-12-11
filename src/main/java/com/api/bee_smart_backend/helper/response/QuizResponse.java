@@ -18,6 +18,7 @@ public class QuizResponse {
     private String image;
     private int quizDuration;
     private String lessonId;
+    private String topicId;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;

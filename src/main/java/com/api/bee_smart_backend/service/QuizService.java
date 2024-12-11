@@ -11,7 +11,9 @@ import java.util.Map;
 public interface QuizService {
     QuizResponse getQuizById(String quizId);
 
-    QuizResponse createQuiz(String topicId, QuizRequest request);
+    QuizResponse createQuizByLessonId(String topicId, QuizRequest request);
+
+    QuizResponse createQuizByTopicId(String topicId, QuizRequest request);
 
     QuizResponse updateQuiz(String quizId, QuizRequest request);
 

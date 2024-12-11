@@ -11,6 +11,8 @@ public interface LessonService {
 
     Map<String, Object> getListLessonByTopic(String topicId, String page, String size, String search);
 
+    Map<String, Object> getLessonsAndQuizzesByTopic(String topicId, String page, String size, String search);
+
     LessonResponse createLessonByTopicId(String topicId, LessonRequest request);
 
     LessonResponse updateLessonById(String lessonId, LessonRequest request);

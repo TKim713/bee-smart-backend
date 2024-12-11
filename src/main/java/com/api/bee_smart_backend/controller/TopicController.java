@@ -110,6 +110,23 @@ public class TopicController {
         }
     }
 
+    @GetMapping("/{topicId}/lessons-and-quizzes")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getLessonsAndQuizzesByTopic(
+            @PathVariable String topicId,
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size,
+            @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+        try {
+            Map<String, Object> result = lessonService.getLessonsAndQuizzesByTopic(topicId, page, size, search);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy bài học và quiz thành công", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
     @GetMapping("/{topicId}/quizzes")
     public ResponseEntity<ResponseObject<Map<String, Object>>> getQuizzesByTopic(
             @PathVariable String topicId,

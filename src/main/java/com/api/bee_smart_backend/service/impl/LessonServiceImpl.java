@@ -4,11 +4,13 @@ import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.LessonRequest;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
+import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Topic;
 import com.api.bee_smart_backend.model.record.LessonRecord;
 import com.api.bee_smart_backend.repository.LessonRepository;
 import com.api.bee_smart_backend.repository.LessonRecordRepository;
+import com.api.bee_smart_backend.repository.QuizRepository;
 import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.LessonService;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,8 @@ public class LessonServiceImpl implements LessonService {
     private LessonRepository lessonRepository;
     @Autowired
     private TopicRepository topicRepository;
+    @Autowired
+    private QuizRepository quizRepository;
     @Autowired
     private LessonRecordRepository lessonRecordRepository;
 
@@ -122,11 +126,70 @@ public class LessonServiceImpl implements LessonService {
                 })
                 .toList();
 
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalItems", lessonPage.getTotalElements());
         response.put("totalPages", lessonPage.getTotalPages());
         response.put("currentPage", lessonPage.getNumber());
         response.put("lessons", lessonResponses);
+
+        return response;
+    }
+
+    @Override
+    public Map<String, Object> getLessonsAndQuizzesByTopic(String topicId, String page, String size, String search) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề với ID: " + topicId, HttpStatus.NOT_FOUND));
+
+        String semester = topic.getSemester();
+        String chapter = switch (semester) {
+            case "Học kì 1" -> "I";
+            case "Học kì 2" -> "II";
+            default -> "Unknown";
+        };
+
+        Page<Lesson> lessonPage;
+        if (search == null || search.isBlank()) {
+            lessonPage = lessonRepository.findByTopicAndDeletedAtIsNull(topic, pageable);
+        } else {
+            lessonPage = lessonRepository.findByTopicAndSearchAndDeletedAtIsNull(topic, search, pageable);
+        }
+
+        List<LessonResponse> lessonResponses = lessonPage.getContent().stream()
+                .map(lesson -> {
+                    String formattedLessonName = String.format(
+                            "%s.%d.%d. %s",
+                            chapter,
+                            topic.getTopicNumber(),
+                            lesson.getLessonNumber(),
+                            lesson.getLessonName()
+                    );
+
+                    return LessonResponse.builder()
+                            .lessonId(lesson.getLessonId())
+                            .lessonName(formattedLessonName)
+                            .description(lesson.getDescription())
+                            .content(lesson.getContent())
+                            .viewCount(lesson.getViewCount())
+                            .build();
+                })
+                .toList();
+
+        List<QuizResponse> quizResponses = quizRepository.findByTopicAndDeletedAtIsNull(topic, pageable).stream()
+                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                .toList();
+
+        // Build the response map
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalItems", lessonPage.getTotalElements());
+        response.put("totalPages", lessonPage.getTotalPages());
+        response.put("currentPage", lessonPage.getNumber());
+        response.put("lessons", lessonResponses);
+        response.put("quizzes", quizResponses);
 
         return response;
     }

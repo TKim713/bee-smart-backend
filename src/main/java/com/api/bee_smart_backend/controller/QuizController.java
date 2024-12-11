@@ -25,11 +25,28 @@ public class QuizController {
     private QuestionService questionService;
 
     @PostMapping("/lesson/{lessonId}")
-    public ResponseEntity<ResponseObject<QuizResponse>> createQuiz(
+    public ResponseEntity<ResponseObject<QuizResponse>> createQuizByLessonId(
             @PathVariable String lessonId,
             @RequestBody QuizRequest request) {
         try {
-            QuizResponse response = quizService.createQuiz(lessonId, request);
+            QuizResponse response = quizService.createQuizByLessonId(lessonId, request);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Tạo quiz thành công!", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi tạo quiz: " + e.getMessage(), null));
+        }
+    }
+
+    @PostMapping("/topic/{topicId}")
+    public ResponseEntity<ResponseObject<QuizResponse>> createQuizByTopicId(
+            @PathVariable String topicId,
+            @RequestBody QuizRequest request) {
+        try {
+            QuizResponse response = quizService.createQuizByTopicId(topicId, request);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Tạo quiz thành công!", response));
         } catch (CustomException e) {

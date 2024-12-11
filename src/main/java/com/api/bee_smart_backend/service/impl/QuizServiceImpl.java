@@ -63,7 +63,7 @@ public class QuizServiceImpl implements QuizService {
     }
 
     @Override
-    public QuizResponse createQuiz(String lessonId, QuizRequest request) {
+    public QuizResponse createQuizByLessonId(String lessonId, QuizRequest request) {
 
         Lesson lesson = lessonRepository.findById(lessonId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy bài học", HttpStatus.NOT_FOUND));
@@ -72,6 +72,28 @@ public class QuizServiceImpl implements QuizService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .lesson(lesson)
+                .topic(lesson.getTopic())
+                .image(request.getImage())
+                .quizDuration(request.getQuizDuration())
+                .questions(new ArrayList<>())
+                .createdAt(now)
+                .build();
+
+        Quiz savedQuiz = quizRepository.save(quiz);
+
+        return mapData.mapOne(savedQuiz, QuizResponse.class);
+    }
+
+    @Override
+    public QuizResponse createQuizByTopicId(String topicId, QuizRequest request) {
+
+        Topic topic = topicRepository.findById(topicId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy chủ đề", HttpStatus.NOT_FOUND));
+
+        Quiz quiz = Quiz.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .topic(topic)
                 .image(request.getImage())
                 .quizDuration(request.getQuizDuration())
                 .questions(new ArrayList<>())
