@@ -258,7 +258,7 @@ public class QuizServiceImpl implements QuizService {
         QuizRecord quizRecord = QuizRecord.builder()
                 .user(user)
                 .quiz(quiz)
-                .gradeName(quiz.getLesson().getTopic().getGrade().getGradeName())
+                .gradeName(quiz.getTopic().getGrade().getGradeName())
                 .totalQuestions(allQuestions.size())
                 .correctAnswers(correctAnswersCount)
                 .points(points)
