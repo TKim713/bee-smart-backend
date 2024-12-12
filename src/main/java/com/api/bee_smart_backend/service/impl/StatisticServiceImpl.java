@@ -265,6 +265,81 @@ public class StatisticServiceImpl implements StatisticService {
         return chartData;
     }
 
+    @Override
+    public Map<String, Map<String, Double>> getQuizAverageByMonth(String date) {
+        YearMonth currentYearMonth = YearMonth.now();
+        LocalDate startDate = getLocalDate(date, currentYearMonth);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+        LocalDate currentDate = LocalDate.now();
+        if (currentDate.isBefore(endDate)) {
+            endDate = currentDate;
+        }
+
+        List<QuizRecord> quizRecords = quizRecordRepository.findAllBySubmitDateBetween(
+                startDate.atStartOfDay(),
+                endDate.plusDays(1).atStartOfDay()
+        );
+
+        Map<String, Map<String, Integer>> totalQuizCount = new LinkedHashMap<>();
+        Map<String, Map<String, Double>> totalPoints = new LinkedHashMap<>();
+        Map<String, Map<String, Double>> averageScores = new LinkedHashMap<>();
+
+        List<String> grades = List.of("Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5");
+
+        for (LocalDate dateIter = startDate; !dateIter.isAfter(endDate); dateIter = dateIter.plusDays(1)) {
+            String dateStr = dateIter.format(DateTimeFormatter.ofPattern("dd-MM"));
+            totalPoints.putIfAbsent(dateStr, new LinkedHashMap<>());
+            totalQuizCount.putIfAbsent(dateStr, new LinkedHashMap<>());
+            averageScores.putIfAbsent(dateStr, new LinkedHashMap<>());
+
+            for (String grade : grades) {
+                totalPoints.get(dateStr).put(grade, 0.0);
+                totalQuizCount.get(dateStr).put(grade, 0);
+                averageScores.get(dateStr).put(grade, 0.0);
+            }
+        }
+
+        for (QuizRecord record : quizRecords) {
+            String dateStr = record.getSubmitDate().format(DateTimeFormatter.ofPattern("dd-MM"));
+            String gradeName = record.getGradeName();
+
+            if (gradeName == null) {
+                continue;
+            }
+
+            totalPoints.putIfAbsent(dateStr, new LinkedHashMap<>());
+            totalQuizCount.putIfAbsent(dateStr, new LinkedHashMap<>());
+
+            double currentTotalPoints = totalPoints.get(dateStr).getOrDefault(gradeName, 0.0);
+            int currentTotalQuizzes = totalQuizCount.get(dateStr).getOrDefault(gradeName, 0);
+
+            totalPoints.get(dateStr).put(gradeName, currentTotalPoints + record.getPoints());
+            totalQuizCount.get(dateStr).put(gradeName, currentTotalQuizzes + 1);
+        }
+
+        for (String dateStr : totalPoints.keySet()) {
+            Map<String, Double> dailyPoints = totalPoints.get(dateStr);
+            Map<String, Integer> dailyQuizCount = totalQuizCount.get(dateStr);
+            Map<String, Double> dailyAverageScores = averageScores.get(dateStr);
+
+            for (String grade : grades) {
+                double totalPointsForGrade = dailyPoints.getOrDefault(grade, 0.0);
+                int totalQuizzesForGrade = dailyQuizCount.getOrDefault(grade, 0);
+
+                if (totalQuizzesForGrade > 0) {
+                    double averageScore = totalPointsForGrade / totalQuizzesForGrade;
+                    dailyAverageScores.put(grade, Math.round(averageScore * 100.0) / 100.0); // Round to 2 decimal places
+                } else {
+                    dailyAverageScores.put(grade, 0.0);
+                }
+            }
+        }
+
+        return averageScores;
+    }
+
+
     private static LocalDate getLocalDate(String date, YearMonth currentYearMonth) {
         int queryYear;
         int queryMonth;

@@ -16,4 +16,6 @@ public interface StatisticService {
     Map<String, Double> getQuizStatistics();
 
     Map<String, Map<String, Integer>> getQuizByMonth(String date);
+
+    Map<String, Map<String, Double>> getQuizAverageByMonth(String date);
 }

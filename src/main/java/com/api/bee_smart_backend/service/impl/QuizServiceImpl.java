@@ -1,7 +1,6 @@
 package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.MapData;
-import com.api.bee_smart_backend.helper.enums.Role;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.QuizRequest;
 import com.api.bee_smart_backend.helper.request.SubmissionRequest;
@@ -70,6 +69,7 @@ public class QuizServiceImpl implements QuizService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .lesson(lesson)
+                .topic(lesson.getTopic())
                 .image(request.getImage())
                 .quizDuration(request.getQuizDuration())
                 .questions(new ArrayList<>())
@@ -155,15 +155,16 @@ public class QuizServiceImpl implements QuizService {
         Page<Quiz> quizPage;
 
         if (search == null || search.isBlank()) {
-            quizPage = quizRepository.findByTopicAndDeletedAtIsNull(topic, pageable);
+            quizPage = quizRepository.findByTopicAndLessonIsNullAndDeletedAtIsNull(topic, pageable);
         } else {
-            quizPage = quizRepository.findByTopicAndSearchAndDeletedAtIsNull(topic, search, pageable);
+            quizPage = quizRepository.findByTopicAndLessonIsNullAndSearchAndDeletedAtIsNull(topic, search, pageable);
         }
 
         List<QuizResponse> quizResponses = quizPage.getContent().stream()
                 .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
                 .toList();
 
+        // Prepare the response
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalItems", quizPage.getTotalElements());
         response.put("totalPages", quizPage.getTotalPages());
@@ -243,7 +244,7 @@ public class QuizServiceImpl implements QuizService {
                     .build());
         }
 
-        double points = (double) correctAnswersCount / allQuestions.size() * 10;
+        double points = Math.round((double) correctAnswersCount / allQuestions.size() * 10);
 
         int fromIndex = Math.min(pageNumber * pageSize, results.size());
         int toIndex = Math.min(fromIndex + pageSize, results.size());

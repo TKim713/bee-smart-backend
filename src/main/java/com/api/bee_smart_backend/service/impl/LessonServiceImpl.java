@@ -182,9 +182,9 @@ public class LessonServiceImpl implements LessonService {
 
         Page<Quiz> quizPage;
         if (search == null || search.isBlank()) {
-            quizPage = quizRepository.findByTopicAndDeletedAtIsNull(topic, pageable);
+            quizPage = quizRepository.findByTopicAndLessonIsNullAndDeletedAtIsNull(topic, pageable);
         } else {
-            quizPage = quizRepository.findByTopicAndSearchAndDeletedAtIsNull(topic, search, pageable);
+            quizPage = quizRepository.findByTopicAndLessonIsNullAndSearchAndDeletedAtIsNull(topic, search, pageable);
         }
 
         List<QuizResponse> quizResponses = quizPage.getContent().stream()

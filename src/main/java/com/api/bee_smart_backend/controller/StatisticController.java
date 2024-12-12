@@ -113,4 +113,18 @@ public class StatisticController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu biểu đồ: " + e.getMessage(), null));
         }
     }
+
+    @GetMapping("/admin/quiz-average-by-month")
+    public ResponseEntity<ResponseObject<Map<String, Map<String, Double>>>> getQuizAverageByMonth(
+            @RequestParam(required = false) String date
+    ) {
+        try {
+            Map<String, Map<String, Double>> chartData = statisticService.getQuizAverageByMonth(date);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu biểu đồ điểm trung bình thành công", chartData));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu biểu đồ: " + e.getMessage(), null));
+        }
+    }
 }
