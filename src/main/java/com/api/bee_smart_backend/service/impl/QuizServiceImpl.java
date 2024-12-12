@@ -70,7 +70,6 @@ public class QuizServiceImpl implements QuizService {
                 .title(request.getTitle())
                 .description(request.getDescription())
                 .lesson(lesson)
-                .topic(lesson.getTopic())
                 .image(request.getImage())
                 .quizDuration(request.getQuizDuration())
                 .questions(new ArrayList<>())
@@ -165,7 +164,7 @@ public class QuizServiceImpl implements QuizService {
                 .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
                 .toList();
 
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalItems", quizPage.getTotalElements());
         response.put("totalPages", quizPage.getTotalPages());
         response.put("currentPage", quizPage.getNumber());
@@ -190,7 +189,7 @@ public class QuizServiceImpl implements QuizService {
                 .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
                 .toList();
 
-        Map<String, Object> response = new HashMap<>();
+        Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalItems", quizPage.getTotalElements());
         response.put("totalPages", quizPage.getTotalPages());
         response.put("currentPage", quizPage.getNumber());
