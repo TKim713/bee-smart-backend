@@ -9,6 +9,7 @@ import lombok.*;
 public class LessonResponse {
     private String lessonId;
     private String lessonName;
+    private String gradeName;
     private int lessonNumber;
     private String description;
     private String content;

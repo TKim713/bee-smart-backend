@@ -315,7 +315,9 @@ public class LessonServiceImpl implements LessonService {
         }
 
         if (lesson.getLessonNumber() == 1 || isAuthenticated()) {
-            return mapData.mapOne(lesson, LessonResponse.class);
+            LessonResponse response = mapData.mapOne(lesson, LessonResponse.class);
+            response.setGradeName(lesson.getTopic().getGrade().getGradeName());
+            return response;
         } else {
             throw new CustomException("Vui lòng đăng nhập để tiếp tục xem bài học.", HttpStatus.UNAUTHORIZED);
         }
