@@ -26,6 +26,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -138,11 +139,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         Token token = tokenRepository.findByUserAndTokenType(user, TokenType.VERIFY)
                 .orElse(new Token());
 
+        Instant tokenExpirationTime = Instant.now().plus(Duration.ofMinutes(10));
+
         token.setAccessToken(newToken);
         token.setExpired(false);
         token.setRevoked(false);
         token.setTokenType(TokenType.VERIFY);
         token.setUser(user);
+        token.setExpirationTime(tokenExpirationTime);
         token.setCreatedAt(now);
         token.setUpdatedAt(now);
 
