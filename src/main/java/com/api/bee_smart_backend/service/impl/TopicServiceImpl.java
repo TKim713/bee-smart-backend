@@ -64,60 +64,62 @@ public class TopicServiceImpl implements TopicService {
         };
 
         List<TopicLessonResponse> topics = topicPage.getContent().stream()
-                .map(topic -> TopicLessonResponse.builder()
-                        .topicId(topic.getTopicId())
-                        .topicName(topic.getTopicName())
-                        .topicNumber(topic.getTopicNumber())
-                        .lessons(topic.getLessons().stream()
-                                .filter(lesson -> search == null || lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
-                                .map(lesson -> {
-                                    String formattedLessonName = String.format(
-                                            "%s.%d.%d. %s",
-                                            chapter,
-                                            topic.getTopicNumber(),
-                                            lesson.getLessonNumber(),
-                                            lesson.getLessonName()
-                                    );
+                .map(topic -> {
+                    List<LessonResponse> lessons = topic.getLessons().stream()
+                            .filter(lesson -> search == null || lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
+                            .map(lesson -> {
+                                String formattedLessonName = String.format(
+                                        "%s.%d.%d. %s",
+                                        chapter,
+                                        topic.getTopicNumber(),
+                                        lesson.getLessonNumber(),
+                                        lesson.getLessonName()
+                                );
 
-                                    return LessonResponse.builder()
-                                            .lessonId(lesson.getLessonId())
-                                            .lessonName(formattedLessonName)
-                                            .lessonNumber(lesson.getLessonNumber())
-                                            .description(lesson.getDescription())
-                                            .content(lesson.getContent())
-                                            .viewCount(lesson.getViewCount())
-                                            .build();
-                                })
-                                .toList())
-                        .build())
-                .toList();
+                                return LessonResponse.builder()
+                                        .lessonId(lesson.getLessonId())
+                                        .lessonName(formattedLessonName)
+                                        .lessonNumber(lesson.getLessonNumber())
+                                        .description(lesson.getDescription())
+                                        .content(lesson.getContent())
+                                        .viewCount(lesson.getViewCount())
+                                        .build();
+                            })
+                            .toList();
 
-        List<Topic> topicsList = topicPage.getContent();
+                    List<QuizResponse> quizzes;
+                    if (search == null || search.isBlank()) {
+                        quizzes = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(
+                                        List.of(topic),
+                                        pageable
+                                ).getContent().stream()
+                                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                                .toList();
+                    } else {
+                        quizzes = quizRepository.findByTopicInAndLessonIsNullAndSearchAndDeletedAtIsNull(
+                                        List.of(topic),
+                                        search,
+                                        pageable
+                                ).getContent().stream()
+                                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                                .toList();
+                    }
 
-        Page<Quiz> quizPage;
-        if (search == null || search.isBlank()) {
-            quizPage = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(
-                    topicsList,
-                    pageable
-            );
-        } else {
-            quizPage = quizRepository.findByTopicInAndLessonIsNullAndSearchAndDeletedAtIsNull(
-                    topicsList,
-                    search,
-                    pageable
-            );
-        }
-
-        List<QuizResponse> quizzes = quizPage.getContent().stream()
-                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                    return TopicLessonResponse.builder()
+                            .topicId(topic.getTopicId())
+                            .topicName(topic.getTopicName())
+                            .topicNumber(topic.getTopicNumber())
+                            .lessons(lessons)
+                            .quizzes(quizzes)
+                            .build();
+                })
                 .toList();
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalItems", topicPage.getTotalElements() + quizPage.getTotalElements());
-        response.put("totalPages", Math.max(topicPage.getTotalPages(), quizPage.getTotalPages()));
+        response.put("totalItems", topicPage.getTotalElements());
+        response.put("totalPages", topicPage.getTotalPages());
         response.put("currentPage", pageNumber);
         response.put("topics", topics);
-        response.put("quizzes", quizzes);
 
         return response;
     }

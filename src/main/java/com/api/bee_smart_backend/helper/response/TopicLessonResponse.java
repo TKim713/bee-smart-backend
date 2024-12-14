@@ -16,4 +16,5 @@ public class TopicLessonResponse {
     private String topicName;
     private int topicNumber;
     private List<LessonResponse> lessons;
+    private List<QuizResponse> quizzes;
 }
