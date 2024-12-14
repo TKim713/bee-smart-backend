@@ -135,11 +135,18 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         String newToken = UUID.randomUUID().toString();
-
-        Token token = tokenRepository.findByUserAndTokenType(user, TokenType.VERIFY)
-                .orElse(new Token());
-
         Instant tokenExpirationTime = Instant.now().plus(Duration.ofMinutes(10));
+
+        Token token = tokenRepository.findFirstByUserAndTokenTypeOrderByUpdatedAtDescCreatedAtDesc(user, TokenType.VERIFY)
+                .orElseGet(() -> Token.builder()
+                        .accessToken(newToken)
+                        .tokenType(TokenType.VERIFY)
+                        .expired(false)
+                        .revoked(false)
+                        .user(user)
+                        .expirationTime(tokenExpirationTime)
+                        .createdAt(now)
+                        .build());
 
         token.setAccessToken(newToken);
         token.setExpired(false);
