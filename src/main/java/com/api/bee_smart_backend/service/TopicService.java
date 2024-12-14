@@ -8,7 +8,8 @@ import java.util.Map;
 
 public interface TopicService {
 
-    Map<String, Object> getTopicsByGradeAndSemester(String grade, String semester, String page, String size);
+
+    Map<String, Object> getTopicsByGradeAndSemester(String grade, String semester, String page, String size, String search);
 
     TopicResponse createTopicByGradeId(String gradeId, TopicRequest request);
 

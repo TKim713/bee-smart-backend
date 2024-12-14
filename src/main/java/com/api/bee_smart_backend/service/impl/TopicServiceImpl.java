@@ -3,13 +3,15 @@ package com.api.bee_smart_backend.service.impl;
 import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.response.LessonResponse;
+import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.TopicLessonResponse;
 import com.api.bee_smart_backend.helper.response.TopicResponse;
 import com.api.bee_smart_backend.helper.request.TopicRequest;
 import com.api.bee_smart_backend.model.Grade;
+import com.api.bee_smart_backend.model.Quiz;
 import com.api.bee_smart_backend.model.Topic;
 import com.api.bee_smart_backend.repository.GradeRepository;
-import com.api.bee_smart_backend.repository.LessonRepository;
+import com.api.bee_smart_backend.repository.QuizRepository;
 import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.TopicService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -38,13 +41,13 @@ public class TopicServiceImpl implements TopicService {
     @Autowired
     private final TopicRepository topicRepository;
     @Autowired
-    private final LessonRepository lessonRepository;
+    private final QuizRepository quizRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
 
     @Override
-    public Map<String, Object> getTopicsByGradeAndSemester(String grade, String semester, String page, String size) {
+    public Map<String, Object> getTopicsByGradeAndSemester(String grade, String semester, String page, String size, String search) {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
@@ -66,6 +69,7 @@ public class TopicServiceImpl implements TopicService {
                         .topicName(topic.getTopicName())
                         .topicNumber(topic.getTopicNumber())
                         .lessons(topic.getLessons().stream()
+                                .filter(lesson -> search == null || lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
                                 .map(lesson -> {
                                     String formattedLessonName = String.format(
                                             "%s.%d.%d. %s",
@@ -88,11 +92,32 @@ public class TopicServiceImpl implements TopicService {
                         .build())
                 .toList();
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("totalItems", topicPage.getTotalElements());
-        response.put("totalPages", topicPage.getTotalPages());
-        response.put("currentPage", topicPage.getNumber());
+        List<Topic> topicsList = topicPage.getContent();
+
+        Page<Quiz> quizPage;
+        if (search == null || search.isBlank()) {
+            quizPage = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(
+                    topicsList,
+                    pageable
+            );
+        } else {
+            quizPage = quizRepository.findByTopicInAndLessonIsNullAndSearchAndDeletedAtIsNull(
+                    topicsList,
+                    search,
+                    pageable
+            );
+        }
+
+        List<QuizResponse> quizzes = quizPage.getContent().stream()
+                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                .toList();
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalItems", topicPage.getTotalElements() + quizPage.getTotalElements());
+        response.put("totalPages", Math.max(topicPage.getTotalPages(), quizPage.getTotalPages()));
+        response.put("currentPage", pageNumber);
         response.put("topics", topics);
+        response.put("quizzes", quizzes);
 
         return response;
     }

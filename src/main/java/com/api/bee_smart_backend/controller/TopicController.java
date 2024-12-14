@@ -81,9 +81,10 @@ public class TopicController {
             @RequestParam String grade,
             @RequestParam String semester,
             @RequestParam(required = false) String page,
-            @RequestParam(required = false) String size) {
+            @RequestParam(required = false) String size,
+            @RequestParam(required = false) String search) {
         try {
-            Map<String, Object> result = topicService.getTopicsByGradeAndSemester(grade, semester, page, size);
+            Map<String, Object> result = topicService.getTopicsByGradeAndSemester(grade, semester, page, size, search);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy chủ đề thành công", result));
