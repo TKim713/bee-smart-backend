@@ -28,7 +28,7 @@ public class EmailServiceImpl implements EmailService {
                     "<p>Nếu bạn có bất kỳ câu hỏi nào hoặc cần hỗ trợ, vui lòng liên hệ với đội ngũ hỗ trợ của chúng tôi tại <strong>support@beesmart.com</strong>.</p>" +
                     "<p>Cảm ơn bạn đã trở thành một phần của cộng đồng chúng tôi! Chúng tôi mong muốn giúp con bạn trở thành một bậc thầy về toán học!</p>" +
                     "<p>Chúc bạn học tập vui vẻ!</p>" +
-                    "<p>Trân trọng,<br>Đội Ngũ <strong>Bee Smart</strong><br><a href=\"http://www.beesmart.com\">www.beesmart.com</a></p>";
+                    "<p>Trân trọng,<br>Đội Ngũ <strong>Bee Smart</strong><br><a href=\"http://www.beesmart.com\">www.beesmart669.com</a></p>";
 
     public static final String RESET_PASSWORD_TEMPLATE =
             "<p>Kính gửi <strong>%s</strong>,</p>" +
@@ -37,7 +37,7 @@ public class EmailServiceImpl implements EmailService {
                     "<p>Vui lòng nhập mã này trên trang đặt lại mật khẩu để tiếp tục quá trình.</p>" +
                     "<p>Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.</p>" +
                     "<p>Chúc bạn học tập vui vẻ!</p>" +
-                    "<p>Trân trọng,<br>Đội Ngũ <strong>Bee Smart</strong><br><a href=\"http://www.beesmart.com\">www.beesmart.com</a></p>";
+                    "<p>Trân trọng,<br>Đội Ngũ <strong>Bee Smart</strong><br><a href=\"http://www.beesmart.com\">www.beesmart669.com</a></p>";
 
     @Override
     public void sendEmail(String to, String subject, String body) {
