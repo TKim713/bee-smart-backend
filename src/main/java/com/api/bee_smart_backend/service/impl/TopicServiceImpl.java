@@ -55,6 +55,7 @@ public class TopicServiceImpl implements TopicService {
         Grade existingGrade = gradeRepository.findByGradeNameAndDeletedAtIsNull(grade)
                 .orElseThrow(() -> new CustomException("Lớp không tồn tại", HttpStatus.NOT_FOUND));
 
+        // Step 1: Get all topics for the given grade and semester
         Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemesterAndDeletedAtIsNull(existingGrade.getGradeId(), semester, pageable);
 
         String chapter = switch (semester) {
@@ -63,8 +64,34 @@ public class TopicServiceImpl implements TopicService {
             default -> "Unknown"; // Default value if semester does not match
         };
 
-        List<TopicLessonResponse> topics = topicPage.getContent().stream()
+        // Step 2: Filter topics by search term
+        List<Topic> filteredTopics = topicPage.getContent().stream()
+                .filter(topic -> search == null || topic.getTopicName().toLowerCase().contains(search.toLowerCase()))
+                .toList();
+
+        // Step 3: If no topics match, search lessons
+        if (filteredTopics.isEmpty() && search != null && !search.isBlank()) {
+            filteredTopics = topicPage.getContent().stream()
+                    .filter(topic -> topic.getLessons().stream()
+                            .anyMatch(lesson -> lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
+                    )
+                    .toList();
+        }
+
+        // Step 4: If no topics and lessons match, search quizzes
+        if (filteredTopics.isEmpty() && search != null && !search.isBlank()) {
+            filteredTopics = topicPage.getContent().stream()
+                    .filter(topic -> quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), pageable)
+                            .getContent().stream()
+                            .anyMatch(quiz -> quiz.getTitle().toLowerCase().contains(search.toLowerCase()))
+                    )
+                    .toList();
+        }
+
+        // Step 5: Build response for the filtered topics
+        List<TopicLessonResponse> topics = filteredTopics.stream()
                 .map(topic -> {
+                    // Filter lessons by search
                     List<LessonResponse> lessons = topic.getLessons().stream()
                             .filter(lesson -> search == null || lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
                             .map(lesson -> {
@@ -87,23 +114,12 @@ public class TopicServiceImpl implements TopicService {
                             })
                             .toList();
 
-                    List<QuizResponse> quizzes;
-                    if (search == null || search.isBlank()) {
-                        quizzes = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(
-                                        List.of(topic),
-                                        pageable
-                                ).getContent().stream()
-                                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
-                                .toList();
-                    } else {
-                        quizzes = quizRepository.findByTopicInAndLessonIsNullAndSearchAndDeletedAtIsNull(
-                                        List.of(topic),
-                                        search,
-                                        pageable
-                                ).getContent().stream()
-                                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
-                                .toList();
-                    }
+                    // Filter quizzes by search
+                    List<QuizResponse> quizzes = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), pageable)
+                            .getContent().stream()
+                            .filter(quiz -> search == null || quiz.getTitle().toLowerCase().contains(search.toLowerCase()))
+                            .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                            .toList();
 
                     return TopicLessonResponse.builder()
                             .topicId(topic.getTopicId())
@@ -116,8 +132,8 @@ public class TopicServiceImpl implements TopicService {
                 .toList();
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalItems", topicPage.getTotalElements());
-        response.put("totalPages", topicPage.getTotalPages());
+        response.put("totalItems", topics.size());
+        response.put("totalPages", (int) Math.ceil((double) topics.size() / pageSize));
         response.put("currentPage", pageNumber);
         response.put("topics", topics);
 
