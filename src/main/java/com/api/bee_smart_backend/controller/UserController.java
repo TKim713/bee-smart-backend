@@ -95,8 +95,8 @@ public class UserController {
         String jwtToken = token.replace("Bearer ", "");
         try {
             CreateStudentResponse response = userService.createStudentByParent(jwtToken, studentRequest);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(new ResponseObject<>(HttpStatus.CREATED.value(), "Tạo học sinh thành công!", response));
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Tạo học sinh thành công!", response));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
