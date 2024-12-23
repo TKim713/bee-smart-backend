@@ -187,6 +187,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll().stream()
+                .filter(user -> user.getDeletedAt() == null)
                 .map(user -> UserResponse.builder()
                         .userId(user.getUserId())
                         .username(user.getUsername())
