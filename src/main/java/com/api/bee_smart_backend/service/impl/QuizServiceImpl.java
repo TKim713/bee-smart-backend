@@ -1,6 +1,7 @@
 package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.MapData;
+import com.api.bee_smart_backend.helper.enums.QuestionType;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.QuizRequest;
 import com.api.bee_smart_backend.helper.request.SubmissionRequest;
@@ -219,15 +220,19 @@ public class QuizServiceImpl implements QuizService {
                     .findFirst()
                     .orElseThrow(() -> new CustomException("Không tìm thấy câu hỏi với ID: " + userAnswer.getQuestionId(), HttpStatus.BAD_REQUEST));
 
-            boolean isCorrect = switch (question.getQuestionType()) {
-                case MULTIPLE_CHOICE -> question.getCorrectAnswer().equals(userAnswer.getSelectedAnswer());
-                case MULTI_SELECT ->
-                        new HashSet<>(question.getCorrectAnswers()).containsAll(userAnswer.getSelectedAnswers())
-                                && new HashSet<>(userAnswer.getSelectedAnswers()).containsAll(question.getCorrectAnswers());
-                case FILL_IN_THE_BLANK -> question.getAnswers().stream()
+            boolean isCorrect = false;
+
+            if (question.getQuestionType() == QuestionType.MULTIPLE_CHOICE) {
+                isCorrect = question.getCorrectAnswer().equals(userAnswer.getSelectedAnswer());
+            } else if (question.getQuestionType() == QuestionType.MULTI_SELECT) {
+                isCorrect = new HashSet<>(question.getCorrectAnswers()).containsAll(userAnswer.getSelectedAnswers())
+                        && new HashSet<>(userAnswer.getSelectedAnswers()).containsAll(question.getCorrectAnswers());
+            } else if (question.getQuestionType() == QuestionType.FILL_IN_THE_BLANK) {
+                isCorrect = question.getAnswers().stream()
                         .anyMatch(answer -> answer.equalsIgnoreCase(userAnswer.getSelectedAnswer()));
-                default -> throw new CustomException("Loại câu hỏi không hợp lệ", HttpStatus.BAD_REQUEST);
-            };
+            } else {
+                throw new CustomException("Loại câu hỏi không hợp lệ", HttpStatus.BAD_REQUEST);
+            }
 
             if (isCorrect) {
                 correctAnswersCount++;
@@ -237,8 +242,10 @@ public class QuizServiceImpl implements QuizService {
                     .questionId(question.getQuestionId())
                     .content(question.getContent())
                     .image(question.getImage())
-                    .options(question.getOptions())
-                    .correctAnswer(question.getCorrectAnswer())
+                    .options(question.getOptions()) // Ensure this is populated correctly
+                    .correctAnswer(question.getCorrectAnswer()) // For single-choice, should return the correct answer.
+                    .correctAnswers(question.getCorrectAnswers()) // For multi-select, this should return the list of correct answers
+                    .answers(userAnswer.getSelectedAnswers()) // Populate if this field exists (or remove if not needed)
                     .userAnswer(userAnswer.getSelectedAnswer())
                     .isCorrect(isCorrect)
                     .build());
