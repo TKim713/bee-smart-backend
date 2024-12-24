@@ -244,7 +244,7 @@ public class QuizServiceImpl implements QuizService {
                     .image(question.getImage())
                     .options(question.getOptions()) // Ensure this is populated correctly
                     .correctAnswer(question.getCorrectAnswer()) // For single-choice, should return the correct answer.
-                    .correctAnswers(question.getCorrectAnswers()) // For multi-select, this should return the list of correct answers
+                    .correctAnswers(question.getCorrectAnswers() != null ? question.getCorrectAnswers() : question.getAnswers()) // For multi-select, this should return the list of correct answers
                     .answers(userAnswer.getSelectedAnswers()) // Populate if this field exists (or remove if not needed)
                     .userAnswer(userAnswer.getSelectedAnswer())
                     .isCorrect(isCorrect)
