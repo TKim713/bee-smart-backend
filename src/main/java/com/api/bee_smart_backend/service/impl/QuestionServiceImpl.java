@@ -141,6 +141,35 @@ public class QuestionServiceImpl implements QuestionService {
         return response;
     }
 
+    @Override
+    public Map<String, Object> getQuestionsByQuizId(String quizId) {
+        // Tìm quiz theo quizId
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy quiz với ID: " + quizId, HttpStatus.NOT_FOUND));
+
+        List<Question> questions = questionRepository.findByQuizAndDeletedAtIsNull(quiz);
+
+        List<QuestionResponse> questionResponses = questions.stream()
+                .map(question -> QuestionResponse.builder()
+                        .questionId(question.getQuestionId())
+                        .content(question.getContent())
+                        .image(question.getImage())
+                        .questionType(question.getQuestionType().toString())
+                        .options(question.getOptions())
+                        .correctAnswer(question.getCorrectAnswer())
+                        .correctAnswers(question.getCorrectAnswers())
+                        .answers(question.getAnswers())
+                        .build())
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalItems", questions.size());
+        response.put("quizDuration", quiz.getQuizDuration());
+        response.put("questions", questionResponses);
+
+        return response;
+    }
+
     private void updateQuestionFields(Question question, QuestionRequest request) {
         QuestionType questionType = QuestionType.valueOf(request.getQuestionType().toUpperCase());
 

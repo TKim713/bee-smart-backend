@@ -129,6 +129,23 @@ public class QuizController {
         }
     }
 
+    @GetMapping("/{quizId}/get-questions")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getQuestionsByQuizId(
+            @PathVariable String quizId) {
+        try {
+            Map<String, Object> result = questionService.getQuestionsByQuizId(quizId);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy câu hỏi thành công", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
     @PostMapping("/{quizId}/submit-quiz")
     public ResponseEntity<ResponseObject<Map<String, Object>>> submitQuiz(
             @RequestHeader("Authorization") String token,

@@ -16,4 +16,6 @@ public interface QuestionService {
     QuestionResponse getQuestionByQuestionId(String questionId);
 
     Map<String, Object> getListQuestionsByQuizId(String quizId, String page, String size, String search);
+
+    Map<String, Object> getQuestionsByQuizId(String quizId);
 }
