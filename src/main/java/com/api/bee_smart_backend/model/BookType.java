@@ -1,6 +1,9 @@
 package com.api.bee_smart_backend.model;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -12,12 +15,11 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "grade")
-public class Grade {
+@Document(collection = "book_type")
+public class BookType {
     @Id
-    private String gradeId;
-
-    private String gradeName;
+    private String bookId;
+    private String bookName;
 
     @CreatedDate
     private Instant createdAt;

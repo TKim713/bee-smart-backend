@@ -54,6 +54,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)
                         .requestMatchers("/api/customers/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)
                         .requestMatchers("/api/lessons/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)
+                        .requestMatchers("/api/book-types/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)
+                        .requestMatchers("/api/subjects/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)
                         .requestMatchers("/api/grades/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)
                         .requestMatchers("/api/topics/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)
                         .requestMatchers("/api/questions/**").hasAnyAuthority(RolePermissions.ADMIN_ROLES)

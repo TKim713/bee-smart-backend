@@ -9,9 +9,9 @@ import java.util.Map;
 public interface TopicService {
 
 
-    Map<String, Object> getTopicsByGradeAndSemester(String grade, String semester, String page, String size, String search);
+    Map<String, Object> getTopicsBySubjectGradeAndSemester(String subject, String grade, String semester, String page, String size, String search, String bookType);
 
-    TopicResponse createTopicByGradeId(String gradeId, TopicRequest request);
+    TopicResponse createTopicByGradeIdSubjectIdAndBookTypeId(String gradeId, String subjectId, String bookTypeId, TopicRequest request);
 
     TopicResponse updateTopicById(String topicId, TopicRequest request);
 
