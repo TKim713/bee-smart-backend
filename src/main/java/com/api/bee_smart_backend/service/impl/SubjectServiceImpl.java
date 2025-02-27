@@ -30,7 +30,7 @@ public class SubjectServiceImpl implements SubjectService {
     public List<SubjectResponse> getAllSubjects() {
         List<Subject> subjects = subjectRepository.findAllByDeletedAtIsNull();
         return subjects.stream()
-                .map(bookType -> mapData.mapOne(subjects, SubjectResponse.class))
+                .map(subject -> mapData.mapOne(subject, SubjectResponse.class))
                 .collect(Collectors.toList());
     }
 
