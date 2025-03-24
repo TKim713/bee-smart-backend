@@ -44,6 +44,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/grades/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/topics/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/quizzes/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/book-types/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/subjects/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/users/parent/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
                         .requestMatchers(HttpMethod.GET, "/api/users/user-info").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
                         .requestMatchers(HttpMethod.GET, "/api/questions/**").hasAnyAuthority(RolePermissions.ALL_API_ROLES)
