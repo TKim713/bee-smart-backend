@@ -18,4 +18,6 @@ public interface QuestionService {
     Map<String, Object> getListQuestionsByQuizId(String quizId, String page, String size, String search);
 
     Map<String, Object> getQuestionsByQuizId(String quizId);
+
+    boolean checkAnswer(String questionId, String userAnswer);
 }

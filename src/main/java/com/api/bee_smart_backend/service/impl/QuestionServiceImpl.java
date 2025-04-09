@@ -20,9 +20,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -191,5 +193,31 @@ public class QuestionServiceImpl implements QuestionService {
             default:
                 throw new CustomException("Loại câu hỏi không hợp lệ", HttpStatus.BAD_REQUEST);
         }
+    }
+
+    @Override
+    public boolean checkAnswer(String questionId, String userAnswer) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new CustomException("Câu hỏi không tồn tại!", HttpStatus.NOT_FOUND));
+
+        // Nếu là câu hỏi 1 đáp án
+        if (question.getCorrectAnswer() != null) {
+            return question.getCorrectAnswer().equalsIgnoreCase(userAnswer.trim());
+        }
+
+        // Nếu là câu hỏi nhiều đáp án
+        if (question.getCorrectAnswers() != null && !question.getCorrectAnswers().isEmpty()) {
+            List<String> userAnswers = Arrays.asList(userAnswer.split(",")); // Tách thành danh sách
+            return question.getCorrectAnswers().stream()
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toSet()) // Đưa về Set để so sánh không phân biệt thứ tự
+                    .equals(userAnswers.stream()
+                            .map(String::trim)
+                            .map(String::toLowerCase)
+                            .collect(Collectors.toSet()));
+        }
+
+        return false; // Trường hợp không có đáp án nào
     }
 }
