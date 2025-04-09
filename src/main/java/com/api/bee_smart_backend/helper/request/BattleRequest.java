@@ -14,4 +14,7 @@ import java.util.List;
 public class BattleRequest {
     private String topic;
     private List<String> playerIds;
+    // Added fields for grade/subject matchmaking
+    private String gradeId;
+    private String subjectId;
 }

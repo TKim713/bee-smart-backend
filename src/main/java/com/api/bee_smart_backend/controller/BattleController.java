@@ -6,6 +6,7 @@ import com.api.bee_smart_backend.helper.request.BattleRequest;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.service.BattleService;
+import com.api.bee_smart_backend.service.GradeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,12 @@ public class BattleController {
     @Autowired
     private BattleService battleService;
 
+    @Autowired
+    private GradeService gradeService;
+
+    @Autowired
+    private SubjectService subjectService;
+
     @GetMapping
     public ResponseEntity<ResponseObject<Map<String, Object>>> getAllBattles(
             @RequestParam(name = "page", required = false) String page,
@@ -29,10 +36,10 @@ public class BattleController {
         try {
             Map<String, Object> result = battleService.getAllBattles(page, size, search);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách trận đấu thành công", result.isEmpty() ? Collections.emptyMap() : result));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Battle list retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy danh sách trận đấu: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving battle list: " + e.getMessage(), null));
         }
     }
 
@@ -41,13 +48,27 @@ public class BattleController {
         try {
             BattleResponse battleResponse = battleService.matchPlayers(request);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Ghép trận đấu thành công!", battleResponse));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Match created successfully!", battleResponse));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi ghép trận đấu: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error creating match: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/matchmaking/status")
+    public ResponseEntity<ResponseObject<String>> getMatchmakingStatus(
+            @RequestParam String gradeId,
+            @RequestParam String subjectId) {
+        try {
+            String status = battleService.checkMatchmakingStatus(gradeId, subjectId);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Matchmaking status retrieved", status));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error getting matchmaking status: " + e.getMessage(), null));
         }
     }
 
@@ -58,13 +79,13 @@ public class BattleController {
         try {
             BattleResponse battleResponse = battleService.submitAnswer(battleId, request);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Câu trả lời được gửi thành công!", battleResponse));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Answer submitted successfully!", battleResponse));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi gửi câu trả lời: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error submitting answer: " + e.getMessage(), null));
         }
     }
 
@@ -73,13 +94,13 @@ public class BattleController {
         try {
             battleService.endBattle(battleId);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Trận đấu đã kết thúc!", "Trận đấu " + battleId + " kết thúc thành công"));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Battle ended successfully!", "Battle " + battleId + " ended successfully"));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi kết thúc trận đấu: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error ending battle: " + e.getMessage(), null));
         }
     }
 
@@ -88,13 +109,37 @@ public class BattleController {
         try {
             BattleResponse battleResponse = battleService.getBattleById(battleId);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy thông tin trận đấu thành công", battleResponse));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Battle details retrieved successfully", battleResponse));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
                     .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy thông tin trận đấu: " + e.getMessage(), null));
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving battle details: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/grades")
+    public ResponseEntity<ResponseObject<List<Grade>>> getAllGrades() {
+        try {
+            List<Grade> grades = gradeService.getAllGrades();
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Grades retrieved successfully", grades));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving grades: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/subjects")
+    public ResponseEntity<ResponseObject<List<Subject>>> getAllSubjects() {
+        try {
+            List<Subject> subjects = subjectService.getAllSubjects();
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Subjects retrieved successfully", subjects));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving subjects: " + e.getMessage(), null));
         }
     }
 }

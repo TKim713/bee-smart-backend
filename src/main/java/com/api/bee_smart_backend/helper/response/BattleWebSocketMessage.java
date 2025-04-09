@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 @Builder
 @Data
 public class BattleWebSocketMessage {
-    private String type;        // "join", "answer", "result", etc.
+    private String type; // "answer", "quit", etc.
     private String battleId;
-    private String questionId;
     private String userId;
+    private String questionId;
     private String answer;
     private int timeTaken;
 }

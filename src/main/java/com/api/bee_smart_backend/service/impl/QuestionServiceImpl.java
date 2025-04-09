@@ -7,8 +7,10 @@ import com.api.bee_smart_backend.helper.request.QuestionRequest;
 import com.api.bee_smart_backend.helper.response.QuestionResponse;
 import com.api.bee_smart_backend.model.Question;
 import com.api.bee_smart_backend.model.Quiz;
+import com.api.bee_smart_backend.model.Topic;
 import com.api.bee_smart_backend.repository.QuestionRepository;
 import com.api.bee_smart_backend.repository.QuizRepository;
+import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.QuestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,10 +22,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,10 +32,13 @@ public class QuestionServiceImpl implements QuestionService {
     @Autowired
     private QuizRepository quizRepository;
     @Autowired
+    private TopicRepository topicRepository;
+    @Autowired
     private QuestionRepository questionRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
+    private final Random random = new Random();
 
     @Override
     public QuestionResponse addQuestionToQuiz(String quizId, QuestionRequest request) {
@@ -219,5 +221,38 @@ public class QuestionServiceImpl implements QuestionService {
         }
 
         return false; // Trường hợp không có đáp án nào
+    }
+
+    @Override
+    public Question getRandomQuestionByGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
+        // Find topics for this grade and subject
+        List<Topic> topics = topicRepository.findByGradeIdAndSubjectId(gradeId, subjectId);
+
+        if (topics.isEmpty()) {
+            log.warn("No topics found for grade {} and subject {}", gradeId, subjectId);
+            return null;
+        }
+
+        // Get all quizzes for these topics
+        List<String> topicIds = topics.stream()
+                .map(Topic::getTopicId)
+                .collect(Collectors.toList());
+
+        // Find questions for these topics that haven't been answered yet
+        List<Question> questions;
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            questions = questionRepository.findByTopicsInAndDeletedAtIsNull(topicIds);
+        } else {
+            questions = questionRepository.findByTopicsInAndQuestionIdNotInAndDeletedAtIsNull(
+                    topicIds, excludeIds);
+        }
+
+        if (questions.isEmpty()) {
+            log.warn("No questions available for the provided criteria");
+            return null;
+        }
+
+        // Select a random question
+        return questions.get(random.nextInt(questions.size()));
     }
 }

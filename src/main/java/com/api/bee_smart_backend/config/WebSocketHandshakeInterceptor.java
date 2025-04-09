@@ -33,11 +33,28 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
             if (token != null && jwtTokenUtil.validateToken(token)) {
                 String username = jwtTokenUtil.getUsernameFromToken(token);
 
-                // Truy vấn userId từ username
+                // Get userId from username
                 Optional<User> userOptional = userRepository.findByUsernameAndDeletedAtIsNull(username);
                 if (userOptional.isPresent()) {
                     String userId = userOptional.get().getUserId();
                     attributes.put("userId", userId);
+
+                    // Extract additional parameters
+                    String battleId = httpServletRequest.getParameter("battleId");
+                    if (battleId != null) {
+                        attributes.put("battleId", battleId);
+                    }
+
+                    String gradeId = httpServletRequest.getParameter("grade");
+                    if (gradeId != null) {
+                        attributes.put("gradeId", gradeId);
+                    }
+
+                    String subjectId = httpServletRequest.getParameter("subject");
+                    if (subjectId != null) {
+                        attributes.put("subjectId", subjectId);
+                    }
+
                     return true;
                 }
             }
@@ -48,7 +65,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
     @Override
     public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                WebSocketHandler wsHandler, Exception exception) {
-        // Do nothing
+        // No operation needed
     }
 }
 

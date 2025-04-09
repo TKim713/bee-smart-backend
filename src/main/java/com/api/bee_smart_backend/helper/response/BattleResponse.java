@@ -18,4 +18,7 @@ public class BattleResponse {
     private String status; // "ONGOING", "ENDED"
     private List<PlayerScore> playerScores;
     private String winner;
+    // Added fields for grade/subject info
+    private String gradeId;
+    private String subjectId;
 }

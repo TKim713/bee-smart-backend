@@ -24,9 +24,13 @@ public class Battle {
     @Id
     private String id;
     private String topic;
-    private String status; // "ONGOING" hoặc "ENDED"
+    private String status; // "ONGOING" or "ENDED"
     private List<PlayerScore> playerScores;
     private String winner;
+
+    // Fields for grade and subject-based matchmaking
+    private String gradeId;
+    private String subjectId;
 
     private Instant startTime;
     private Instant endTime;

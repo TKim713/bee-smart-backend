@@ -35,42 +35,53 @@ public class BattleServiceImpl implements BattleService {
     private final BattleRepository battleRepository;
     private final QuestionService questionService;
     private final BattleWebSocketHandler webSocketHandler;
+    private final TopicRepository topicRepository;
 
+    // Map structure: "{gradeId}:{subjectId}" -> Queue<String>
     private final Map<String, Queue<String>> matchmakingQueues = new ConcurrentHashMap<>();
 
     @Override
     public BattleResponse matchPlayers(BattleRequest request) {
-        String topic = request.getTopic();
-        String currentPlayer = request.getPlayerIds().get(0); // chỉ có 1 player
+        String gradeId = request.getGradeId();
+        String subjectId = request.getSubjectId();
+        String currentPlayer = request.getPlayerIds().get(0); // Only one player
 
-        matchmakingQueues.putIfAbsent(topic, new LinkedList<>());
-        Queue<String> queue = matchmakingQueues.get(topic);
+        // Create queue key based on grade and subject
+        String queueKey = gradeId + ":" + subjectId;
+        matchmakingQueues.putIfAbsent(queueKey, new LinkedList<>());
+        Queue<String> queue = matchmakingQueues.get(queueKey);
 
         synchronized (queue) {
             if (!queue.isEmpty()) {
                 String opponent = queue.poll();
 
                 BattleRequest battleRequest = BattleRequest.builder()
-                        .topic(topic)
+                        .topic(request.getTopic())
+                        .gradeId(gradeId)
+                        .subjectId(subjectId)
                         .playerIds(List.of(currentPlayer, opponent))
                         .build();
 
                 BattleResponse battleResponse = createBattle(battleRequest);
 
-                // 🔁 Gửi WebSocket cho cả hai player rằng trận đấu đã bắt đầu
+                // Send WebSocket message to both players that the battle has started
                 try {
                     webSocketHandler.broadcastUpdate(
                             battleResponse.getBattleId(),
-                            new ObjectMapper().writeValueAsString(battleResponse)
+                            new ObjectMapper().writeValueAsString(
+                                    Map.of(
+                                            "type", "START",
+                                            "battleId", battleResponse.getBattleId()
+                                    ))
                     );
                 } catch (Exception e) {
-                    log.error("Lỗi khi gửi WebSocket bắt đầu trận đấu", e);
+                    log.error("Error sending WebSocket battle start message", e);
                 }
 
                 return battleResponse;
             } else {
                 queue.offer(currentPlayer);
-                throw new CustomException("Đang chờ người chơi khác...", HttpStatus.ACCEPTED);
+                throw new CustomException("Waiting for other players...", HttpStatus.ACCEPTED);
             }
         }
     }
@@ -93,11 +104,13 @@ public class BattleServiceImpl implements BattleService {
     @Override
     public BattleResponse createBattle(BattleRequest request) {
         if (request.getPlayerIds() == null || request.getPlayerIds().size() != 2) {
-            throw new CustomException("Trận đấu phải có đúng 2 người chơi!", HttpStatus.BAD_REQUEST);
+            throw new CustomException("Battle must have exactly 2 players!", HttpStatus.BAD_REQUEST);
         }
 
         Battle battle = new Battle();
         battle.setTopic(request.getTopic());
+        battle.setGradeId(request.getGradeId());
+        battle.setSubjectId(request.getSubjectId());
         battle.setStatus("ONGOING");
         battle.setPlayerScores(request.getPlayerIds().stream()
                 .map(id -> new PlayerScore(id, 0))
@@ -108,27 +121,62 @@ public class BattleServiceImpl implements BattleService {
         Battle savedBattle = battleRepository.save(battle);
         BattleResponse response = convertToResponse(savedBattle);
 
-        // 🟢 Gửi thông báo tạo trận qua WebSocket
-        try {
-            webSocketHandler.broadcastUpdate(savedBattle.getId(), new ObjectMapper().writeValueAsString(response));
-        } catch (Exception e) {
-            log.error("Lỗi khi gửi thông báo tạo trận qua WebSocket", e);
-        }
+        // Send questions to players via WebSocket
+        sendNextQuestion(savedBattle.getId());
 
         return response;
+    }
+
+    public void sendNextQuestion(String battleId) {
+        Battle battle = battleRepository.findById(battleId)
+                .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
+
+        if ("ENDED".equals(battle.getStatus())) {
+            return;
+        }
+
+        // Get a random question based on grade and subject
+        Question question = questionService.getRandomQuestionByGradeAndSubject(
+                battle.getGradeId(),
+                battle.getSubjectId(),
+                battle.getAnsweredQuestions()
+        );
+
+        if (question == null) {
+            // No more questions available, end the battle
+            endBattle(battleId);
+            return;
+        }
+
+        // Map the question to a format suitable for the client
+        Map<String, Object> questionMsg = new HashMap<>();
+        questionMsg.put("type", "QUESTION");
+        questionMsg.put("question", Map.of(
+                "questionId", question.getQuestionId(),
+                "content", question.getContent(),
+                "image", question.getImage(),
+                "options", question.getOptions()
+        ));
+
+        // Send the question to all players in the battle
+        try {
+            webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(questionMsg));
+        } catch (Exception e) {
+            log.error("Error sending question via WebSocket", e);
+        }
     }
 
     @Override
     public BattleResponse submitAnswer(String battleId, AnswerRequest request) {
         Battle battle = battleRepository.findById(battleId)
-                .orElseThrow(() -> new CustomException("Trận đấu không tồn tại!", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
 
         if ("ENDED".equals(battle.getStatus())) {
-            throw new CustomException("Trận đấu đã kết thúc!", HttpStatus.BAD_REQUEST);
+            throw new CustomException("The battle has ended!", HttpStatus.BAD_REQUEST);
         }
 
         if (battle.getAnsweredQuestions().contains(request.getQuestionId())) {
-            throw new CustomException("Câu hỏi này đã được trả lời!", HttpStatus.CONFLICT);
+            throw new CustomException("This question has already been answered!", HttpStatus.CONFLICT);
         }
 
         boolean isCorrect = questionService.checkAnswer(request.getQuestionId(), request.getAnswer());
@@ -138,11 +186,29 @@ public class BattleServiceImpl implements BattleService {
         battleRepository.save(battle);
         BattleResponse updatedBattle = convertToResponse(battle);
 
-        // 🔄 Gửi kết quả cập nhật qua WebSocket
+        // Send updated battle state via WebSocket
         try {
             webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(updatedBattle));
         } catch (Exception e) {
-            log.error("Lỗi khi gửi cập nhật trận đấu qua WebSocket", e);
+            log.error("Error sending battle update via WebSocket", e);
+        }
+
+        // Check if all players have answered
+        boolean allPlayersAnswered = true;
+        for (PlayerScore playerScore : battle.getPlayerScores()) {
+            // Logic to check if this player has answered the current question
+            // This may require additional tracking in your model
+        }
+
+        // If all players answered, send the next question after a short delay
+        if (allPlayersAnswered) {
+            CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
+                if (battle.getAnsweredQuestions().size() >= 10) {
+                    endBattle(battleId);
+                } else {
+                    sendNextQuestion(battleId);
+                }
+            });
         }
 
         return updatedBattle;
@@ -151,14 +217,14 @@ public class BattleServiceImpl implements BattleService {
     @Override
     public BattleResponse getBattleById(String battleId) {
         Battle battle = battleRepository.findById(battleId)
-                .orElseThrow(() -> new CustomException("Trận đấu không tồn tại!", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
         return convertToResponse(battle);
     }
 
     @Override
     public void endBattle(String battleId) {
         Battle battle = battleRepository.findById(battleId)
-                .orElseThrow(() -> new CustomException("Trận đấu không tồn tại!", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
 
         battle.setStatus("ENDED");
         battle.setEndTime(Instant.now());
@@ -170,11 +236,13 @@ public class BattleServiceImpl implements BattleService {
         battleRepository.save(battle);
         BattleResponse finalResponse = convertToResponse(battle);
 
-        // 🏁 Gửi kết quả cuối cùng qua WebSocket
+        // Send final results via WebSocket
         try {
-            webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(finalResponse));
+            Map<String, Object> endMsg = new HashMap<>(new ObjectMapper().convertValue(finalResponse, Map.class));
+            endMsg.put("type", "END");
+            webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(endMsg));
         } catch (Exception e) {
-            log.error("Lỗi khi gửi kết quả cuối cùng qua WebSocket", e);
+            log.error("Error sending final results via WebSocket", e);
         }
     }
 
@@ -195,11 +263,14 @@ public class BattleServiceImpl implements BattleService {
                 battleRepository.save(battle);
                 BattleResponse response = convertToResponse(battle);
 
-                // ⏱ Gửi cập nhật timeout qua WebSocket
+                // Send timeout update via WebSocket
                 try {
-                    webSocketHandler.broadcastUpdate(battle.getId(), new ObjectMapper().writeValueAsString(response));
+                    Map<String, Object> timeoutMsg = new HashMap<>(new ObjectMapper().convertValue(response, Map.class));
+                    timeoutMsg.put("type", "END");
+                    timeoutMsg.put("reason", "TIMEOUT");
+                    webSocketHandler.broadcastUpdate(battle.getId(), new ObjectMapper().writeValueAsString(timeoutMsg));
                 } catch (Exception e) {
-                    log.error("Lỗi khi gửi cập nhật timeout qua WebSocket", e);
+                    log.error("Error sending timeout update via WebSocket", e);
                 }
             }
         }
@@ -227,11 +298,12 @@ public class BattleServiceImpl implements BattleService {
     }
 
     @Override
-    public String checkMatchmakingStatus(String topic) {
-        Queue<String> queue = matchmakingQueues.get(topic);
+    public String checkMatchmakingStatus(String gradeId, String subjectId) {
+        String queueKey = gradeId + ":" + subjectId;
+        Queue<String> queue = matchmakingQueues.get(queueKey);
         if (queue == null) {
-            return "Không có hàng đợi nào cho chủ đề này.";
+            return "No queue exists for this grade and subject.";
         }
-        return "Số người chơi trong hàng đợi: " + queue.size();
+        return "Players in queue: " + queue.size();
     }
 }
