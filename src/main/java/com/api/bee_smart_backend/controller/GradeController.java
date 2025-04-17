@@ -83,4 +83,23 @@ public class GradeController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa khối học: " + e.getMessage(), null));
         }
     }
+
+    @GetMapping("/{gradeId}")
+    public ResponseEntity<ResponseObject<GradeResponse>> getGradeById(@PathVariable String gradeId) {
+        try {
+            GradeResponse gradeResponse = gradeService.getGradeById(gradeId);
+            return ResponseEntity.ok(new ResponseObject<>(
+                    HttpStatus.OK.value(),
+                    "Lấy khối học thành công",
+                    gradeResponse
+            ));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy khối học: " + e.getMessage(), null));
+        }
+    }
+
 }

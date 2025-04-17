@@ -101,4 +101,13 @@ public class GradeServiceImpl implements GradeService {
         grades.forEach(grade -> grade.setDeletedAt(now));
         gradeRepository.saveAll(grades);
     }
+
+    @Override
+    public GradeResponse getGradeById(String gradeId) {
+        Grade grade = gradeRepository.findByGradeIdAndDeletedAtIsNull(gradeId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy khối học với ID: " + gradeId, HttpStatus.NOT_FOUND));
+
+        return mapData.mapOne(grade, GradeResponse.class);
+    }
+
 }

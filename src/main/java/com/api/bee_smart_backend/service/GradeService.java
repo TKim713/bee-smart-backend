@@ -17,4 +17,5 @@ public interface GradeService {
 
     void deleteGradeByIds(List<String> gradeIds);
 
+    GradeResponse getGradeById(String gradeId);
 }

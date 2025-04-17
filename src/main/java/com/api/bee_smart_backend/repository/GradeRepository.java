@@ -15,5 +15,7 @@ public interface GradeRepository extends MongoRepository<Grade, String> {
     Page<Grade> findAllByDeletedAtIsNull(Pageable pageable);
 
     Page<Grade> findByGradeNameContainingIgnoreCaseAndDeletedAtIsNull(String search, Pageable pageable);
+
+    Optional<Grade> findByGradeIdAndDeletedAtIsNull(String gradeId);
 }
 
