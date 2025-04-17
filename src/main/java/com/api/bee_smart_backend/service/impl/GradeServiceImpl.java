@@ -51,44 +51,8 @@ public class GradeServiceImpl implements GradeService {
         Grade grade = Grade.builder()
                 .gradeName(request.getGradeName())
                 .createdAt(now)
-                .topics(new ArrayList<>())
                 .build();
 
         return gradeRepository.save(grade);
     }
-
-
-//    @Override
-//    public Map<String, Object> getLessonsByGrade(String gradeId, int limit, int skip) {
-//        Grade grade = gradeRepository.findById(gradeId)
-//                .orElseThrow(() -> new CustomException("Lớp không tồn tại", HttpStatus.NOT_FOUND));
-//
-//        List<Chapter> chapters = chapterRepository.findByGrade(grade);
-//
-//        Pageable pageable = PageRequest.of(skip / limit, limit);
-//        Map<String, Object> response = new HashMap<>();
-//
-//        List<Topic> topics = chapters.stream()
-//                .flatMap(chapter -> topicRepository.findByChapter(chapter, pageable).getContent().stream())
-//                .toList();
-//
-//        List<LessonResponse> lessonResponses = topics.stream()
-//                .flatMap(topic -> lessonRepository.findByTopic(topic).stream())
-//                .map(lesson -> new LessonResponse(
-//                        lesson.getLessonId(),
-//                        lesson.getLessonName(),
-//                        lesson.getDescription(),
-//                        lesson.getContent()
-//                ))
-//                .collect(Collectors.toList());
-//
-//        long totalTopics = topicRepository.countByChapterIn(chapters);
-//
-//        response.put("total", totalTopics);
-//        response.put("data", lessonResponses);
-//        response.put("limit", limit);
-//        response.put("skip", skip);
-//
-//        return response;
-//    }
 }

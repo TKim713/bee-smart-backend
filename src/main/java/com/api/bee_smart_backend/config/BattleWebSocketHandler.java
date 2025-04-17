@@ -22,15 +22,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Component
 public class BattleWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final Map<String, List<WebSocketSession>> battleSessions = new ConcurrentHashMap<>();
+    private final Map<String, CopyOnWriteArrayList<WebSocketSession>> battleSessions = new ConcurrentHashMap<>();
 
-    // Change to Map to handle grade/subject matchmaking queues
     private final Map<String, List<WebSocketSession>> matchmakingQueues = new ConcurrentHashMap<>();
 
     @Autowired
@@ -43,7 +43,6 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
         String battleId = (String) attributes.get("battleId");
 
         if (battleId == null) {
-            // This is a matchmaking connection
             String gradeId = (String) attributes.get("gradeId");
             String subjectId = (String) attributes.get("subjectId");
 
@@ -52,31 +51,35 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
                 return;
             }
 
-            // Create queue key based on grade and subject
             String queueKey = gradeId + ":" + subjectId;
-            matchmakingQueues.computeIfAbsent(queueKey, k -> Collections.synchronizedList(new ArrayList<>()))
+            matchmakingQueues
+                    .computeIfAbsent(queueKey, k -> Collections.synchronizedList(new ArrayList<>()))
                     .add(session);
 
             log.info("User {} added to matchmaking queue for grade {} and subject {}. Total in queue: {}",
                     userId, gradeId, subjectId, matchmakingQueues.get(queueKey).size());
 
-            // Check if we have enough players to start a match
             List<WebSocketSession> queue = matchmakingQueues.get(queueKey);
             if (queue.size() >= 2) {
                 startMatchWithTwoPlayers(queueKey, gradeId, subjectId);
             } else {
-                // Send status update to the player
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
                         "type", "STATUS",
                         "message", "Waiting for opponent..."
                 ))));
             }
         } else {
-            // This is a battle session connection
-            battleSessions.computeIfAbsent(battleId, k -> new ArrayList<>()).add(session);
-            log.info("User {} joined battle {}", userId, battleId);
+            // Battle reconnection logic
+            CopyOnWriteArrayList<WebSocketSession> sessionList =
+                    battleSessions.computeIfAbsent(battleId, k -> new CopyOnWriteArrayList<>());
 
-            // Send confirmation to the user
+            if (!sessionList.contains(session)) {
+                sessionList.add(session);
+                log.info("User {} reconnected and added to battle {}", userId, battleId);
+            } else {
+                log.info("User {} already present in battle {}", userId, battleId);
+            }
+
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
                     "type", "JOINED",
                     "battleId", battleId
@@ -95,9 +98,8 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
         String userId2 = (String) player2.getAttributes().get("userId");
 
         try {
-            // Create a battle request
             BattleRequest battleRequest = BattleRequest.builder()
-                    .topic(subjectId) // Using subject as the topic
+                    .topic(subjectId)
                     .gradeId(gradeId)
                     .subjectId(subjectId)
                     .playerIds(List.of(userId1, userId2))
@@ -108,14 +110,18 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
 
             String battleId = battle.getBattleId();
 
-            // Add these sessions to battle sessions
-            battleSessions.put(battleId, List.of(player1, player2));
+            // Append sessions safely
+            CopyOnWriteArrayList<WebSocketSession> sessionList =
+                    battleSessions.computeIfAbsent(battleId, k -> new CopyOnWriteArrayList<>());
 
-            // Send START message to both players
+            if (!sessionList.contains(player1)) sessionList.add(player1);
+            if (!sessionList.contains(player2)) sessionList.add(player2);
+
             String startMessage = objectMapper.writeValueAsString(Map.of(
                     "type", "START",
                     "battleId", battleId
             ));
+
             player1.sendMessage(new TextMessage(startMessage));
             player2.sendMessage(new TextMessage(startMessage));
 
@@ -162,33 +168,26 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         String userId = (String) session.getAttributes().get("userId");
 
-        // Remove from matchmaking queues
-        for (Map.Entry<String, List<WebSocketSession>> entry : matchmakingQueues.entrySet()) {
-            entry.getValue().remove(session);
-        }
+        matchmakingQueues.values().forEach(queue -> queue.removeIf(s -> s.getId().equals(session.getId())));
 
-        // Handle player leaving a battle
-        for (Map.Entry<String, List<WebSocketSession>> entry : battleSessions.entrySet()) {
+        for (Map.Entry<String, CopyOnWriteArrayList<WebSocketSession>> entry : battleSessions.entrySet()) {
             String battleId = entry.getKey();
             List<WebSocketSession> sessions = entry.getValue();
 
             if (sessions.remove(session)) {
                 log.info("User {} left battle {}", userId, battleId);
 
-                // If this was a battle in progress, notify other players and potentially end the battle
                 if (!sessions.isEmpty()) {
                     try {
                         BattleService battleService = applicationContext.getBean(BattleService.class);
                         BattleResponse battle = battleService.getBattleById(battleId);
 
                         if ("ONGOING".equals(battle.getStatus())) {
-                            // Player left during battle, notify others
                             broadcastUpdate(battleId, objectMapper.writeValueAsString(Map.of(
                                     "type", "PLAYER_LEFT",
                                     "userId", userId
                             )));
 
-                            // End the battle if appropriate
                             if (sessions.size() < 2) {
                                 battleService.endBattle(battleId);
                             }

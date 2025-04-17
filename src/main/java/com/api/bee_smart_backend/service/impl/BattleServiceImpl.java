@@ -1,11 +1,14 @@
 package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.BattleWebSocketHandler;
+import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
+import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.model.Battle;
+import com.api.bee_smart_backend.model.Question;
 import com.api.bee_smart_backend.model.dto.PlayerScore;
 import com.api.bee_smart_backend.repository.BattleRepository;
 import com.api.bee_smart_backend.service.BattleService;
@@ -24,7 +27,9 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @Service
@@ -35,7 +40,7 @@ public class BattleServiceImpl implements BattleService {
     private final BattleRepository battleRepository;
     private final QuestionService questionService;
     private final BattleWebSocketHandler webSocketHandler;
-    private final TopicRepository topicRepository;
+    private final MapData mapData;
 
     // Map structure: "{gradeId}:{subjectId}" -> Queue<String>
     private final Map<String, Queue<String>> matchmakingQueues = new ConcurrentHashMap<>();
@@ -119,7 +124,7 @@ public class BattleServiceImpl implements BattleService {
         battle.setAnsweredQuestions(new HashSet<>());
 
         Battle savedBattle = battleRepository.save(battle);
-        BattleResponse response = convertToResponse(savedBattle);
+        BattleResponse response = mapData.mapOne(savedBattle, BattleResponse.class);
 
         // Send questions to players via WebSocket
         sendNextQuestion(savedBattle.getId());
@@ -143,20 +148,44 @@ public class BattleServiceImpl implements BattleService {
         );
 
         if (question == null) {
-            // No more questions available, end the battle
-            endBattle(battleId);
-            return;
+            // Try to get a question without excluding answered questions
+            question = questionService.getRandomQuestionByGradeAndSubject(
+                    battle.getGradeId(),
+                    battle.getSubjectId(),
+                    new HashSet<>()  // Empty set to get any question
+            );
+
+            if (question == null) {
+                // Still no questions available, inform players and end the battle
+                try {
+                    Map<String, Object> errorMsg = new HashMap<>();
+                    errorMsg.put("type", "ERROR");
+                    errorMsg.put("message", "No questions available for this battle. Battle ended.");
+                    webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(errorMsg));
+                } catch (Exception e) {
+                    log.error("Error sending error message via WebSocket", e);
+                }
+
+                // End the battle after informing players
+                endBattle(battleId);
+                return;
+            } else {
+                // Reset answered questions to allow reusing questions if needed
+                battle.setAnsweredQuestions(new HashSet<>());
+                battleRepository.save(battle);
+            }
         }
 
         // Map the question to a format suitable for the client
+        Map<String, Object> questionData = new HashMap<>();
+        questionData.put("questionId", question.getQuestionId());
+        questionData.put("content", question.getContent());
+        questionData.put("image", question.getImage());
+        questionData.put("options", question.getOptions());
+
         Map<String, Object> questionMsg = new HashMap<>();
         questionMsg.put("type", "QUESTION");
-        questionMsg.put("question", Map.of(
-                "questionId", question.getQuestionId(),
-                "content", question.getContent(),
-                "image", question.getImage(),
-                "options", question.getOptions()
-        ));
+        questionMsg.put("question", questionData);
 
         // Send the question to all players in the battle
         try {
@@ -184,7 +213,7 @@ public class BattleServiceImpl implements BattleService {
         battle.getAnsweredQuestions().add(request.getQuestionId());
 
         battleRepository.save(battle);
-        BattleResponse updatedBattle = convertToResponse(battle);
+        BattleResponse updatedBattle = mapData.mapOne(battle, BattleResponse.class);
 
         // Send updated battle state via WebSocket
         try {
@@ -218,7 +247,7 @@ public class BattleServiceImpl implements BattleService {
     public BattleResponse getBattleById(String battleId) {
         Battle battle = battleRepository.findById(battleId)
                 .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
-        return convertToResponse(battle);
+        return mapData.mapOne(battle, BattleResponse.class);
     }
 
     @Override
@@ -234,7 +263,7 @@ public class BattleServiceImpl implements BattleService {
         battle.setWinner(winner.map(PlayerScore::getUserId).orElse(null));
 
         battleRepository.save(battle);
-        BattleResponse finalResponse = convertToResponse(battle);
+        BattleResponse finalResponse = mapData.mapOne(battle, BattleResponse.class);
 
         // Send final results via WebSocket
         try {
@@ -261,7 +290,7 @@ public class BattleServiceImpl implements BattleService {
                 battle.setWinner(winner.map(PlayerScore::getUserId).orElse(null));
 
                 battleRepository.save(battle);
-                BattleResponse response = convertToResponse(battle);
+                BattleResponse response = mapData.mapOne(battle, BattleResponse.class);
 
                 // Send timeout update via WebSocket
                 try {
@@ -274,16 +303,6 @@ public class BattleServiceImpl implements BattleService {
                 }
             }
         }
-    }
-
-    private BattleResponse convertToResponse(Battle battle) {
-        return new BattleResponse(
-                battle.getId(),
-                battle.getTopic(),
-                battle.getStatus(),
-                battle.getPlayerScores(),
-                battle.getWinner()
-        );
     }
 
     public void updateScore(Battle battle, String userId, boolean isCorrect) {

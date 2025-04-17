@@ -14,6 +14,7 @@ import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.QuestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -225,26 +226,18 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Override
     public Question getRandomQuestionByGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
-        // Find topics for this grade and subject
-        List<Topic> topics = topicRepository.findByGradeIdAndSubjectId(gradeId, subjectId);
+        List<Question> questions = getQuestionsForGradeAndSubject(gradeId, subjectId, excludeIds);
 
-        if (topics.isEmpty()) {
-            log.warn("No topics found for grade {} and subject {}", gradeId, subjectId);
-            return null;
+        if (questions.isEmpty() && (excludeIds != null && !excludeIds.isEmpty())) {
+            log.info("No unused questions found, retrying without exclusions");
+            questions = getQuestionsForGradeAndSubject(gradeId, subjectId, null);
         }
 
-        // Get all quizzes for these topics
-        List<String> topicIds = topics.stream()
-                .map(Topic::getTopicId)
-                .collect(Collectors.toList());
-
-        // Find questions for these topics that haven't been answered yet
-        List<Question> questions;
-        if (excludeIds == null || excludeIds.isEmpty()) {
-            questions = questionRepository.findByTopicsInAndDeletedAtIsNull(topicIds);
-        } else {
-            questions = questionRepository.findByTopicsInAndQuestionIdNotInAndDeletedAtIsNull(
-                    topicIds, excludeIds);
+        // If still no questions, try questions from any subject in the same grade
+        if (questions.isEmpty()) {
+            log.info("Falling back to any subject in the same grade");
+            List<Topic> allGradeTopics = topicRepository.findByGrade_GradeId(gradeId);
+            // Process topics to get questions...
         }
 
         if (questions.isEmpty()) {
@@ -252,7 +245,44 @@ public class QuestionServiceImpl implements QuestionService {
             return null;
         }
 
-        // Select a random question
+        // Pick random question
         return questions.get(random.nextInt(questions.size()));
+    }
+
+    private List<Question> getQuestionsForGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
+        // Step 1: Get topics
+        List<Topic> topics = topicRepository.findByGrade_GradeIdAndSubject_SubjectId(gradeId, subjectId);
+
+        if (topics.isEmpty()) {
+            log.warn("No topics found for grade {} and subject {}", gradeId, subjectId);
+            return null;
+        }
+
+        // Step 2: Get topic ObjectIds
+        List<ObjectId> topicObjectIds = topics.stream()
+                .map(topic -> new ObjectId(topic.getTopicId()))
+                .toList();
+
+        // Step 3: Get quizzes by topic.$id using custom @Query
+        List<Quiz> quizzes = quizRepository.findByTopicIds(topicObjectIds);
+
+        if (quizzes.isEmpty()) {
+            log.warn("No quizzes found for topics {}", topicObjectIds);
+            return null;
+        }
+
+        // Step 4: Get questions
+        List<Question> questions;
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            questions = questionRepository.findByQuizInAndDeletedAtIsNull(quizzes);
+        } else {
+            questions = questionRepository.findByQuizInAndQuestionIdNotInAndDeletedAtIsNull(quizzes, excludeIds);
+        }
+
+        if (questions.isEmpty()) {
+            log.warn("No questions available for the provided criteria");
+            return null;
+        }
+        return questions;
     }
 }

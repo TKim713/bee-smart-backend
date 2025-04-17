@@ -45,12 +45,12 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                         attributes.put("battleId", battleId);
                     }
 
-                    String gradeId = httpServletRequest.getParameter("grade");
+                    String gradeId = httpServletRequest.getParameter("gradeId");
                     if (gradeId != null) {
                         attributes.put("gradeId", gradeId);
                     }
 
-                    String subjectId = httpServletRequest.getParameter("subject");
+                    String subjectId = httpServletRequest.getParameter("subjectId");
                     if (subjectId != null) {
                         attributes.put("subjectId", subjectId);
                     }

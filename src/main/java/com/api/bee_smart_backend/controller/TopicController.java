@@ -26,12 +26,14 @@ public class TopicController {
     @Autowired
     private QuizService quizService;
 
-    @PostMapping("/grade/{gradeId}")
-    public ResponseEntity<ResponseObject<TopicResponse>> createTopicByGradeId(
+    @PostMapping("/grade/{gradeId}/subject/{subjectId}/bookType/{bookTypeId}")
+    public ResponseEntity<ResponseObject<TopicResponse>> createTopicByGradeIdSubjectIdAndBookTypeId(
             @PathVariable String gradeId,
+            @PathVariable String subjectId,
+            @PathVariable String bookTypeId,
             @RequestBody TopicRequest request) {
         try {
-            TopicResponse response = topicService.createTopicByGradeId(gradeId, request);
+            TopicResponse response = topicService.createTopicByGradeIdSubjectIdAndBookTypeId(gradeId, subjectId, bookTypeId, request);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Tạo chủ đề thành công", response));
@@ -77,17 +79,19 @@ public class TopicController {
     }
 
     @GetMapping
-    public ResponseEntity<ResponseObject<Map<String, Object>>> getTopicsByGradeAndSemester(
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getTopicsBySubjectGradeAndSemester(
+            @RequestParam String subject,
             @RequestParam String grade,
             @RequestParam String semester,
             @RequestParam(required = false) String page,
             @RequestParam(required = false) String size,
-            @RequestParam(required = false) String search) {
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String bookType) { // Thêm bookType
         try {
-            Map<String, Object> result = topicService.getTopicsByGradeAndSemester(grade, semester, page, size, search);
+            Map<String, Object> result = topicService.getTopicsBySubjectGradeAndSemester(subject, grade, semester, page, size, search, bookType);
 
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy chủ đề thành công", result));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy chủ đề thành công", result.isEmpty() ? Collections.emptyMap() : result));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));

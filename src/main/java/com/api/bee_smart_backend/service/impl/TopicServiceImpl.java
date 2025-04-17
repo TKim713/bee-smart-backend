@@ -7,12 +7,11 @@ import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.TopicLessonResponse;
 import com.api.bee_smart_backend.helper.response.TopicResponse;
 import com.api.bee_smart_backend.helper.request.TopicRequest;
+import com.api.bee_smart_backend.model.BookType;
 import com.api.bee_smart_backend.model.Grade;
-import com.api.bee_smart_backend.model.Quiz;
+import com.api.bee_smart_backend.model.Subject;
 import com.api.bee_smart_backend.model.Topic;
-import com.api.bee_smart_backend.repository.GradeRepository;
-import com.api.bee_smart_backend.repository.QuizRepository;
-import com.api.bee_smart_backend.repository.TopicRepository;
+import com.api.bee_smart_backend.repository.*;
 import com.api.bee_smart_backend.service.TopicService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +20,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,12 +40,16 @@ public class TopicServiceImpl implements TopicService {
     private final TopicRepository topicRepository;
     @Autowired
     private final QuizRepository quizRepository;
+    @Autowired
+    private final SubjectRepository subjectRepository;
+    @Autowired
+    private final BookTypeRepository bookTypeRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
 
     @Override
-    public Map<String, Object> getTopicsByGradeAndSemester(String grade, String semester, String page, String size, String search) {
+    public Map<String, Object> getTopicsBySubjectGradeAndSemester(String subject, String grade, String semester, String page, String size, String search, String bookType) {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
@@ -55,21 +57,32 @@ public class TopicServiceImpl implements TopicService {
         Grade existingGrade = gradeRepository.findByGradeNameAndDeletedAtIsNull(grade)
                 .orElseThrow(() -> new CustomException("Lớp không tồn tại", HttpStatus.NOT_FOUND));
 
-        // Step 1: Get all topics for the given grade and semester
-        Page<Topic> topicPage = topicRepository.findByGrade_GradeIdAndSemesterAndDeletedAtIsNull(existingGrade.getGradeId(), semester, pageable);
+        Subject existingSubject = subjectRepository.findBySubjectNameAndDeletedAtIsNull(subject)
+                .orElseThrow(() -> new CustomException("Môn học không tồn tại", HttpStatus.NOT_FOUND));
 
+        // Truy vấn MongoDB dựa trên bookType (nếu có)
+        Page<Topic> topicPage;
+        if (bookType != null && !bookType.isBlank()) {
+            BookType existingBookType = bookTypeRepository.findByBookNameAndDeletedAtIsNull(bookType)
+                    .orElseThrow(() -> new CustomException("Loại sách không tồn tại", HttpStatus.NOT_FOUND));
+            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndBookType_BookIdAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, existingBookType.getBookId(), pageable);
+        } else {
+            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, pageable);
+        }
+
+        // Phần còn lại giữ nguyên
         String chapter = switch (semester) {
             case "Học kì 1" -> "I";
             case "Học kì 2" -> "II";
-            default -> "Unknown"; // Default value if semester does not match
+            default -> "Unknown";
         };
 
-        // Step 2: Filter topics by search term
         List<Topic> filteredTopics = topicPage.getContent().stream()
                 .filter(topic -> search == null || topic.getTopicName().toLowerCase().contains(search.toLowerCase()))
                 .toList();
 
-        // Step 3: If no topics match, search lessons
         if (filteredTopics.isEmpty() && search != null && !search.isBlank()) {
             filteredTopics = topicPage.getContent().stream()
                     .filter(topic -> topic.getLessons().stream()
@@ -78,7 +91,6 @@ public class TopicServiceImpl implements TopicService {
                     .toList();
         }
 
-        // Step 4: If no topics and lessons match, search quizzes
         if (filteredTopics.isEmpty() && search != null && !search.isBlank()) {
             filteredTopics = topicPage.getContent().stream()
                     .filter(topic -> quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), pageable)
@@ -88,10 +100,8 @@ public class TopicServiceImpl implements TopicService {
                     .toList();
         }
 
-        // Step 5: Build response for the filtered topics
         List<TopicLessonResponse> topics = filteredTopics.stream()
                 .map(topic -> {
-                    // Filter lessons by search
                     List<LessonResponse> lessons = topic.getLessons().stream()
                             .filter(lesson -> search == null || lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
                             .map(lesson -> {
@@ -114,7 +124,6 @@ public class TopicServiceImpl implements TopicService {
                             })
                             .toList();
 
-                    // Filter quizzes by search
                     List<QuizResponse> quizzes = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), pageable)
                             .getContent().stream()
                             .filter(quiz -> search == null || quiz.getTitle().toLowerCase().contains(search.toLowerCase()))
@@ -141,21 +150,29 @@ public class TopicServiceImpl implements TopicService {
     }
 
     @Override
-    public TopicResponse createTopicByGradeId(String gradeId, TopicRequest request) {
+    public TopicResponse createTopicByGradeIdSubjectIdAndBookTypeId(String gradeId, String subjectId, String bookTypeId, TopicRequest request) {
         Grade grade = gradeRepository.findById(gradeId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy khối với ID: " + gradeId, HttpStatus.NOT_FOUND));
+
+        Subject subject = subjectRepository.findById(subjectId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy môn học với ID: " + subjectId, HttpStatus.NOT_FOUND));
+
+        BookType bookType = bookTypeRepository.findById(bookTypeId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy loại sách với ID: " + bookTypeId, HttpStatus.NOT_FOUND));
 
         Topic topic = Topic.builder()
                 .topicName(request.getTopicName())
                 .topicNumber(request.getTopicNumber())
                 .grade(grade)
+                .subject(subject)
+                .bookType(bookType) // Thêm bookType vào Topic
                 .semester(request.getSemester())
-                .createdAt(now)
+                .createdAt(Instant.now())
                 .build();
 
         Topic savedTopic = topicRepository.save(topic);
-        grade.getTopics().add(savedTopic);
-        gradeRepository.save(grade);
+        subject.getTopics().add(savedTopic);
+        subjectRepository.save(subject);
 
         return mapData.mapOne(savedTopic, TopicResponse.class);
     }
@@ -192,11 +209,11 @@ public class TopicServiceImpl implements TopicService {
             throw new CustomException("Không thể xóa chủ đề vì có bài học liên kết", HttpStatus.BAD_REQUEST);
         }
 
-        Grade grade = topic.getGrade();
+        Subject subject = topic.getSubject();
 
-        if (grade != null) {
-            grade.getTopics().removeIf(existingTopic -> existingTopic.getTopicId().equals(topicId));
-            gradeRepository.save(grade);
+        if (subject != null) {
+            subject.getTopics().removeIf(existingTopic -> existingTopic.getTopicId().equals(topicId));
+            subjectRepository.save(subject);
         }
         topic.setDeletedAt(now);
         topicRepository.save(topic);
@@ -220,11 +237,11 @@ public class TopicServiceImpl implements TopicService {
         }
 
         for (Topic topic : topics) {
-            Grade grade = topic.getGrade();
+            Subject subject = topic.getSubject();
 
-            if (grade != null) {
-                grade.getTopics().removeIf(existingTopic -> topicIds.contains(existingTopic.getTopicId()));
-                gradeRepository.save(grade);
+            if (subject != null) {
+                subject.getTopics().removeIf(existingTopic -> topicIds.contains(existingTopic.getTopicId()));
+                subjectRepository.save(subject);
             }
             topic.setDeletedAt(now);
             topicRepository.save(topic);

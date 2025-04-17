@@ -24,7 +24,12 @@ public class Topic {
 
     @DBRef
     private Grade grade;
+    @DBRef
+    private Subject subject;
     private String semester;
+
+    @DBRef
+    private BookType bookType;
 
     @DBRef
     @ToString.Exclude

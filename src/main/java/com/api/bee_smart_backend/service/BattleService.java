@@ -26,5 +26,5 @@ public interface BattleService {
     // 📌 Kết thúc trận đấu
     void endBattle(String battleId);
 
-    String checkMatchmakingStatus(String topic);
+    String checkMatchmakingStatus(String gradeId, String subjectId);
 }

@@ -7,6 +7,7 @@ import com.api.bee_smart_backend.helper.response.BattleResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.service.BattleService;
 import com.api.bee_smart_backend.service.GradeService;
+import com.api.bee_smart_backend.service.SubjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -116,30 +117,6 @@ public class BattleController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving battle details: " + e.getMessage(), null));
-        }
-    }
-
-    @GetMapping("/grades")
-    public ResponseEntity<ResponseObject<List<Grade>>> getAllGrades() {
-        try {
-            List<Grade> grades = gradeService.getAllGrades();
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Grades retrieved successfully", grades));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving grades: " + e.getMessage(), null));
-        }
-    }
-
-    @GetMapping("/subjects")
-    public ResponseEntity<ResponseObject<List<Subject>>> getAllSubjects() {
-        try {
-            List<Subject> subjects = subjectService.getAllSubjects();
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Subjects retrieved successfully", subjects));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving subjects: " + e.getMessage(), null));
         }
     }
 }

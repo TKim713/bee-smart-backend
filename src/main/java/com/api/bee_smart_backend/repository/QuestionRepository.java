@@ -16,7 +16,7 @@ public interface QuestionRepository extends MongoRepository<Question, String> {
 
     Page<Question> findByQuizAndContentContainingIgnoreCaseAndDeletedAtIsNull(Quiz quiz, String content, Pageable pageable);
 
-    List<Question> findByTopicsInAndDeletedAtIsNull(List<String> topicIds);
+    List<Question> findByQuizInAndDeletedAtIsNull(List<Quiz> quizzes);
 
-    List<Question> findByTopicsInAndQuestionIdNotInAndDeletedAtIsNull(List<String> topicIds, Set<String> excludeIds);
+    List<Question> findByQuizInAndQuestionIdNotInAndDeletedAtIsNull(List<Quiz> quizzes, Set<String> excludeIds);
 }

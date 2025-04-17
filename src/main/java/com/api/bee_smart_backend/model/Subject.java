@@ -1,6 +1,5 @@
 package com.api.bee_smart_backend.model;
 
-import com.api.bee_smart_backend.helper.enums.QuestionType;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -9,37 +8,27 @@ import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "question")
-public class Question {
+@Document(collection = "subject")
+public class Subject {
     @Id
-    private String questionId;
-    private String content;
-    private String image;
-    private List<String> options;
+    private String subjectId;
+    private String subjectName;
 
-    private QuestionType questionType;
-
-    private String correctAnswer;
-    private List<String> correctAnswers;
-    private List<String> answers;
-
-    @ToString.Exclude
     @DBRef
-    private Quiz quiz;
+    @ToString.Exclude
+    private List<Topic> topics = new ArrayList<>();
 
     @CreatedDate
     private Instant createdAt;
-
     @LastModifiedDate
     private Instant updatedAt;
-
     @LastModifiedDate
     private Instant deletedAt;
 }
-
