@@ -50,10 +50,10 @@ public class BookTypeController {
         }
     }
 
-    @PutMapping("/{bookTypeId}")
-    public ResponseEntity<ResponseObject<BookTypeResponse>> updateBookType(@PathVariable String bookTypeId, @RequestBody BookTypeRequest request) {
+    @PutMapping("/{bookId}")
+    public ResponseEntity<ResponseObject<BookTypeResponse>> updateBookType(@PathVariable String bookId, @RequestBody BookTypeRequest request) {
         try {
-            BookTypeResponse bookType = bookTypeService.updateBookType(bookTypeId, request);
+            BookTypeResponse bookType = bookTypeService.updateBookType(bookId, request);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Cập nhật loại sách thành công!", bookType));
         } catch (CustomException e) {
