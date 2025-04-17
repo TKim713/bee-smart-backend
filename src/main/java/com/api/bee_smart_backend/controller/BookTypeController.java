@@ -80,10 +80,10 @@ public class BookTypeController {
         }
     }
 
-    @GetMapping("/{bookTypeId}")
-    public ResponseEntity<ResponseObject<BookTypeResponse>> getBookTypeByBookTypeId(@PathVariable String bookTypeId) {
+    @GetMapping("/{bookId}")
+    public ResponseEntity<ResponseObject<BookTypeResponse>> getBookTypeById(@PathVariable String bookId) {
         try {
-            BookTypeResponse bookTypeResponse = bookTypeService.getBookTypeByBookTypeId(bookTypeId);
+            BookTypeResponse bookTypeResponse = bookTypeService.getBookTypeById(bookId);
             return ResponseEntity.ok(new ResponseObject<>(
                     HttpStatus.OK.value(),
                     "Lấy loại sách thành công",

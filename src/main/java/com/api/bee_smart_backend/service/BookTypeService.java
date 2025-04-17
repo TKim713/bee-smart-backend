@@ -17,5 +17,5 @@ public interface BookTypeService {
 
     void deleteBookTypeByIds(List<String> bookTypeIds);
 
-    BookTypeResponse getBookTypeByBookTypeId(String bookTypeId);
+    BookTypeResponse getBookTypeById(String bookTypeId);
 }

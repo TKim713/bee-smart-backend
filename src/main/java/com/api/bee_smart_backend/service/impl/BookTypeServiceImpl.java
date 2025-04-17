@@ -95,7 +95,7 @@ public class BookTypeServiceImpl implements BookTypeService {
     }
 
     @Override
-    public BookTypeResponse getBookTypeByBookTypeId(String bookTypeId) {
+    public BookTypeResponse getBookTypeById(String bookTypeId) {
         BookType bookType = bookTypeRepository.findByBookIdAndDeletedAtIsNull(bookTypeId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy loại sách với ID: " + bookTypeId, HttpStatus.NOT_FOUND));
         return mapData.mapOne(bookType, BookTypeResponse.class);
