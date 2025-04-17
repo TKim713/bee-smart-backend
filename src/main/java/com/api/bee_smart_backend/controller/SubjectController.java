@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/subjects")
@@ -20,12 +21,18 @@ public class SubjectController {
     private SubjectService subjectService;
 
     @GetMapping
-    public ResponseEntity<List<SubjectResponse>> getAllSubjects() {
-        List<SubjectResponse> subjects = subjectService.getAllSubjects();
-        if (subjects.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.OK).body(Collections.emptyList());
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getAllSubjects(@RequestParam(name = "page", required = false) String page,
+                                                                              @RequestParam(name = "size", required = false) String size,
+                                                                              @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+        try {
+            Map<String, Object> result = subjectService.getAllSubjects(page, size, search);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy môn học thành công", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
-        return ResponseEntity.status(HttpStatus.OK).body(subjects);
     }
 
     @PostMapping
@@ -70,6 +77,24 @@ public class SubjectController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa môn học: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{subjectId}")
+    public ResponseEntity<ResponseObject<SubjectResponse>> getSubjectBySubjectId(@PathVariable String subjectId) {
+        try {
+            SubjectResponse subjectResponse = subjectService.getSubjectBySubjectId(subjectId);
+            return ResponseEntity.ok(new ResponseObject<>(
+                    HttpStatus.OK.value(),
+                    "Lấy môn học thành công",
+                    subjectResponse
+            ));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy môn học: " + e.getMessage(), null));
         }
     }
 }

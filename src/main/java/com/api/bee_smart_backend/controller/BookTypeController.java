@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/book-types")
@@ -20,12 +21,18 @@ public class BookTypeController {
     private BookTypeService bookTypeService;
 
     @GetMapping
-    public ResponseEntity<List<BookTypeResponse>> getAllBookTypes() {
-        List<BookTypeResponse> bookTypes = bookTypeService.getAllBookTypes();
-        if (bookTypes.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.OK).body(Collections.emptyList());
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getAllBookTypes(@RequestParam(name = "page", required = false) String page,
+                                                                               @RequestParam(name = "size", required = false) String size,
+                                                                               @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+        try {
+            Map<String, Object> result = bookTypeService.getAllBookTypes(page, size, search);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy loại sách thành công", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
-        return ResponseEntity.status(HttpStatus.OK).body(bookTypes);
     }
 
     @PostMapping
@@ -70,6 +77,24 @@ public class BookTypeController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa loại sách: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/{bookTypeId}")
+    public ResponseEntity<ResponseObject<BookTypeResponse>> getBookTypeByBookTypeId(@PathVariable String bookTypeId) {
+        try {
+            BookTypeResponse bookTypeResponse = bookTypeService.getBookTypeByBookTypeId(bookTypeId);
+            return ResponseEntity.ok(new ResponseObject<>(
+                    HttpStatus.OK.value(),
+                    "Lấy loại sách thành công",
+                    bookTypeResponse
+            ));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy loại sách: " + e.getMessage(), null));
         }
     }
 }

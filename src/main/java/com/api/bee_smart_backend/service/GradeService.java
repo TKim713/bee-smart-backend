@@ -8,9 +8,13 @@ import java.util.List;
 import java.util.Map;
 
 public interface GradeService {
-    List<GradeResponse> getAllGrades();
+
+    Map<String, Object> getAllGrades(String page, String size, String search);
 
     Grade createGrade(GradeRequest request);
 
-    //Map<String, Object> getLessonsByGrade(String gradeId, int limit, int skip);
+    GradeResponse updateGradeById(String gradeId, GradeRequest request);
+
+    void deleteGradeByIds(List<String> gradeIds);
+
 }
