@@ -26,9 +26,7 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -47,6 +45,8 @@ public class BattleServiceImpl implements BattleService {
     private final Map<String, Set<String>> battleAnsweredPlayers = new ConcurrentHashMap<>();
     // Temporarily stores answers until all players answer a question
     private final Map<String, List<AnswerRequest>> questionAnswers = new ConcurrentHashMap<>();
+    private final Map<String, ScheduledFuture<?>> timeoutTasks = new ConcurrentHashMap<>();
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
 
     @Override
     public BattleResponse matchPlayers(BattleRequest request) {
@@ -228,13 +228,44 @@ public class BattleServiceImpl implements BattleService {
 
         answers.add(request);
 
-        if (answers.size() == battle.getPlayerScores().size()) {
-            // Apply scoring once all players have answered (including timeout/null answers)
-            applyScoringLogic(battle, answers);
+        // If only 1 player answered so far, start timeout for the other
+        if (answers.size() == 1 && battle.getPlayerScores().size() > 1) {
+            ScheduledFuture<?> timeoutTask = scheduler.schedule(() -> {
+                List<String> answeredUsers = answers.stream()
+                        .map(AnswerRequest::getUserId)
+                        .toList();
 
-            // Mark question as answered
-            battle.getAnsweredQuestions().add(questionId);
+                Optional<String> otherUser = battle.getPlayerScores().stream()
+                        .map(PlayerScore::getUserId)
+                        .filter(userId -> !answeredUsers.contains(userId))
+                        .findFirst();
+
+                otherUser.ifPresent(userId -> {
+                    AnswerRequest timeoutAnswer = new AnswerRequest();
+                    timeoutAnswer.setUserId(userId);
+                    timeoutAnswer.setQuestionId(request.getQuestionId());
+                    timeoutAnswer.setAnswer(null);
+                    timeoutAnswer.setTimeTaken(30); // simulate full time
+
+                    // Recursive call to self with timeout answer
+                    submitAnswer(battleId, timeoutAnswer);
+                });
+            }, 31, TimeUnit.SECONDS); // allow buffer
+
+            timeoutTasks.put(key, timeoutTask);
+        }
+
+        if (answers.size() == battle.getPlayerScores().size()) {
+            // Cancel timeout task if it exists
+            if (timeoutTasks.containsKey(key)) {
+                timeoutTasks.get(key).cancel(true);
+                timeoutTasks.remove(key);
+            }
+
+            // Score and continue
+            applyScoringLogic(battle, answers);
             questionAnswers.remove(key);
+            battle.getAnsweredQuestions().add(questionId);
 
             battleRepository.save(battle);
             BattleResponse updatedBattle = mapData.mapOne(battle, BattleResponse.class);
@@ -247,7 +278,7 @@ public class BattleServiceImpl implements BattleService {
                 log.error("Error sending battle update via WebSocket", e);
             }
 
-            // Next question or end
+            // Proceed to next question
             CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
                 if (battleQuestionNumbers.getOrDefault(battleId, 0) >= 10) {
                     endBattle(battleId);
@@ -259,7 +290,7 @@ public class BattleServiceImpl implements BattleService {
             return mapData.mapOne(battle, BattleResponse.class);
         }
 
-        // Save interim state if only one player answered
+        // Save interim state
         battleRepository.save(battle);
         return mapData.mapOne(battle, BattleResponse.class);
     }
@@ -327,23 +358,6 @@ public class BattleServiceImpl implements BattleService {
         }
     }
 
-    public void updateScore(Battle battle, String userId, boolean isCorrect, int timeTaken, boolean isFirstCorrect) {
-        int points;
-        if (isCorrect) {
-            points = isFirstCorrect ? 10 : 5; // First correct = 10 pts, second correct = 5 pts
-        } else {
-            points = 0;
-        }
-
-        battle.getPlayerScores().stream()
-                .filter(p -> p.getUserId().equals(userId))
-                .findFirst()
-                .ifPresentOrElse(
-                        playerScore -> playerScore.setScore(playerScore.getScore() + points),
-                        () -> battle.getPlayerScores().add(new PlayerScore(userId, points))
-                );
-    }
-
     @Override
     public String checkMatchmakingStatus(String gradeId, String subjectId) {
         String queueKey = gradeId + ":" + subjectId;
@@ -355,7 +369,25 @@ public class BattleServiceImpl implements BattleService {
     }
 
     private void applyScoringLogic(Battle battle, List<AnswerRequest> answers) {
-        answers.sort(Comparator.comparingInt(AnswerRequest::getTimeTaken)); // Sort fastest first
+        if (answers == null || answers.isEmpty()) return;
+
+        // ✅ If only one player answered, give them 10 points if correct
+        if (answers.size() == 1) {
+            AnswerRequest only = answers.get(0);
+            boolean correct = questionService.checkAnswer(only.getQuestionId(), only.getAnswer());
+
+            int points = correct ? 10 : 0;
+
+            battle.getPlayerScores().stream()
+                    .filter(p -> p.getUserId().equals(only.getUserId()))
+                    .findFirst()
+                    .ifPresent(p -> p.setScore(p.getScore() + points));
+
+            return;
+        }
+
+        // ✅ If two players answered, score based on order + correctness
+        answers.sort(Comparator.comparingInt(AnswerRequest::getTimeTaken)); // Faster first
 
         boolean firstCorrect = questionService.checkAnswer(
                 answers.get(0).getQuestionId(), answers.get(0).getAnswer()
@@ -368,11 +400,11 @@ public class BattleServiceImpl implements BattleService {
             int points;
             if (isCorrect) {
                 if (i == 0) {
-                    points = 10; // First correct
+                    points = 10; // First and correct
                 } else if (!firstCorrect) {
-                    points = 10; // Second correct, first was wrong
+                    points = 10; // Second and correct, first was wrong
                 } else {
-                    points = 5;  // Second correct, first was correct
+                    points = 5; // Second and correct, but first was also correct
                 }
             } else {
                 points = 0;
