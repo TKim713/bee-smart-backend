@@ -69,7 +69,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         }
 
         // ✳️ Lấy token từ query param nếu không có trong header
-        String tokenParam = request.getParameter("token");
+        String tokenParam = request.getParameter("battle-token");
         if (tokenParam != null && !tokenParam.isEmpty()) {
             return tokenParam;
         }

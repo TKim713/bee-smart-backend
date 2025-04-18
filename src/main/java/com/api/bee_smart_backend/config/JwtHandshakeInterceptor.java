@@ -27,7 +27,7 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
         URI uri = request.getURI();
         MultiValueMap<String, String> queryParams = UriComponentsBuilder.fromUri(uri).build().getQueryParams();
-        String token = queryParams.getFirst("token");
+        String token = queryParams.getFirst("battle-token");
 
         if (token != null && jwtTokenUtil.validateToken(token)) {
             String userId = jwtTokenUtil.getUserIdFromToken(token);

@@ -28,7 +28,7 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                                    WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
         if (request instanceof ServletServerHttpRequest servletRequest) {
             HttpServletRequest httpServletRequest = servletRequest.getServletRequest();
-            String token = httpServletRequest.getParameter("token");
+            String token = httpServletRequest.getParameter("battle-token");
 
             if (token != null && jwtTokenUtil.validateToken(token)) {
                 String username = jwtTokenUtil.getUsernameFromToken(token);
