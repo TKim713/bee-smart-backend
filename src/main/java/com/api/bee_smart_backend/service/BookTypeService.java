@@ -5,14 +5,17 @@ import com.api.bee_smart_backend.helper.response.BookTypeResponse;
 import com.api.bee_smart_backend.model.BookType;
 
 import java.util.List;
+import java.util.Map;
 
 public interface BookTypeService {
 
-    List<BookTypeResponse> getAllBookTypes();
+    Map<String, Object> getAllBookTypes(String page, String size, String search);
 
     BookTypeResponse createBookType(BookTypeRequest request);
 
     BookTypeResponse updateBookType(String id, BookTypeRequest request);
 
     void deleteBookTypeByIds(List<String> bookTypeIds);
+
+    BookTypeResponse getBookTypeById(String bookTypeId);
 }

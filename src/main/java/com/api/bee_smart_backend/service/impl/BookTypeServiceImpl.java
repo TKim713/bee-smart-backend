@@ -10,11 +10,16 @@ import com.api.bee_smart_backend.service.BookTypeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,11 +32,30 @@ public class BookTypeServiceImpl implements BookTypeService {
     private final MapData mapData;
 
     @Override
-    public List<BookTypeResponse> getAllBookTypes() {
-        List<BookType> bookTypes = bookTypeRepository.findAllByDeletedAtIsNull();
-        return bookTypes.stream()
+    public Map<String, Object> getAllBookTypes(String page, String size, String search) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Page<BookType> bookTypePage;
+
+        if (search == null || search.isBlank()) {
+            bookTypePage = bookTypeRepository.findAllByDeletedAtIsNull(pageable);
+        } else {
+            bookTypePage = bookTypeRepository.findByBookNameContainingIgnoreCaseAndDeletedAtIsNull(search, pageable);
+        }
+
+        List<BookTypeResponse> bookTypeResponses = bookTypePage.getContent().stream()
                 .map(bookType -> mapData.mapOne(bookType, BookTypeResponse.class))
                 .collect(Collectors.toList());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalItems", bookTypePage.getTotalElements());
+        response.put("totalPages", bookTypePage.getTotalPages());
+        response.put("currentPage", bookTypePage.getNumber());
+        response.put("bookTypes", bookTypeResponses);
+
+        return response;
     }
 
     @Override
@@ -69,4 +93,12 @@ public class BookTypeServiceImpl implements BookTypeService {
         bookTypes.forEach(bookType -> bookType.setDeletedAt(now));
         bookTypeRepository.saveAll(bookTypes);
     }
+
+    @Override
+    public BookTypeResponse getBookTypeById(String bookTypeId) {
+        BookType bookType = bookTypeRepository.findByBookIdAndDeletedAtIsNull(bookTypeId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy loại sách với ID: " + bookTypeId, HttpStatus.NOT_FOUND));
+        return mapData.mapOne(bookType, BookTypeResponse.class);
+    }
+
 }

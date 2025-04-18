@@ -5,11 +5,8 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.DBRef;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 @Data
 @Builder
@@ -22,18 +19,10 @@ public class Grade {
 
     private String gradeName;
 
-    @DBRef
-    @ToString.Exclude
-    private List<Topic> topics = new ArrayList<>();
-
     @CreatedDate
     private Instant createdAt;
     @LastModifiedDate
     private Instant updatedAt;
     @LastModifiedDate
     private Instant deletedAt;
-
-    public void addChapter(Topic topic) {
-        topics.add(topic);
-    }
 }

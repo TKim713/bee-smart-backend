@@ -228,19 +228,22 @@ public class QuestionServiceImpl implements QuestionService {
     public Question getRandomQuestionByGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
         List<Question> questions = getQuestionsForGradeAndSubject(gradeId, subjectId, excludeIds);
 
-        if (questions.isEmpty() && (excludeIds != null && !excludeIds.isEmpty())) {
-            log.info("No unused questions found, retrying without exclusions");
-            questions = getQuestionsForGradeAndSubject(gradeId, subjectId, null);
+        if (questions == null || questions.isEmpty()) {
+            if (excludeIds != null && !excludeIds.isEmpty()) {
+                log.info("No unused questions found, retrying without exclusions");
+                questions = getQuestionsForGradeAndSubject(gradeId, subjectId, null);
+            }
         }
 
         // If still no questions, try questions from any subject in the same grade
-        if (questions.isEmpty()) {
+        if (questions == null || questions.isEmpty()) {
             log.info("Falling back to any subject in the same grade");
             List<Topic> allGradeTopics = topicRepository.findByGrade_GradeId(gradeId);
             // Process topics to get questions...
+            // For now, just return null safely
         }
 
-        if (questions.isEmpty()) {
+        if (questions == null || questions.isEmpty()) {
             log.warn("No questions available for the provided criteria");
             return null;
         }

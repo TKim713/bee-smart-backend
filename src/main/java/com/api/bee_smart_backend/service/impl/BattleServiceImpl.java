@@ -6,7 +6,6 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
-import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.model.Battle;
 import com.api.bee_smart_backend.model.Question;
 import com.api.bee_smart_backend.model.dto.PlayerScore;
@@ -44,6 +43,10 @@ public class BattleServiceImpl implements BattleService {
 
     // Map structure: "{gradeId}:{subjectId}" -> Queue<String>
     private final Map<String, Queue<String>> matchmakingQueues = new ConcurrentHashMap<>();
+    private final Map<String, Integer> battleQuestionNumbers = new ConcurrentHashMap<>();
+    private final Map<String, Set<String>> battleAnsweredPlayers = new ConcurrentHashMap<>();
+    // Temporarily stores answers until all players answer a question
+    private final Map<String, List<AnswerRequest>> questionAnswers = new ConcurrentHashMap<>();
 
     @Override
     public BattleResponse matchPlayers(BattleRequest request) {
@@ -124,23 +127,40 @@ public class BattleServiceImpl implements BattleService {
         battle.setAnsweredQuestions(new HashSet<>());
 
         Battle savedBattle = battleRepository.save(battle);
-        BattleResponse response = mapData.mapOne(savedBattle, BattleResponse.class);
+        battleQuestionNumbers.put(savedBattle.getId(), 0);
 
-        // Send questions to players via WebSocket
-        sendNextQuestion(savedBattle.getId());
-
-        return response;
+        return mapData.mapOne(savedBattle, BattleResponse.class);
     }
 
-    public void sendNextQuestion(String battleId) {
+    @Override
+    public BattleResponse sendNextQuestion(String battleId) {
         Battle battle = battleRepository.findById(battleId)
                 .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
 
         if ("ENDED".equals(battle.getStatus())) {
-            return;
+            log.warn("Attempted to send a question to ended battle: {}", battleId);
+
+            try {
+                Map<String, Object> endMsg = new HashMap<>();
+                endMsg.put("type", "END");
+                endMsg.put("battleId", battleId);
+                endMsg.put("winner", battle.getWinner());
+                webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(endMsg));
+            } catch (Exception e) {
+                log.error("Error sending battle ended notification", e);
+            }
+
+            throw new CustomException("Battle has already ended!", HttpStatus.BAD_REQUEST);
         }
 
-        // Get a random question based on grade and subject
+        int currentQuestionNumber = battleQuestionNumbers.getOrDefault(battleId, 0);
+
+        if (currentQuestionNumber >= 10) {
+            endBattle(battleId);
+            throw new CustomException("Battle has ended - all questions completed!", HttpStatus.OK);
+        }
+
+        // Get a question
         Question question = questionService.getRandomQuestionByGradeAndSubject(
                 battle.getGradeId(),
                 battle.getSubjectId(),
@@ -148,35 +168,23 @@ public class BattleServiceImpl implements BattleService {
         );
 
         if (question == null) {
-            // Try to get a question without excluding answered questions
-            question = questionService.getRandomQuestionByGradeAndSubject(
-                    battle.getGradeId(),
-                    battle.getSubjectId(),
-                    new HashSet<>()  // Empty set to get any question
-            );
-
-            if (question == null) {
-                // Still no questions available, inform players and end the battle
-                try {
-                    Map<String, Object> errorMsg = new HashMap<>();
-                    errorMsg.put("type", "ERROR");
-                    errorMsg.put("message", "No questions available for this battle. Battle ended.");
-                    webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(errorMsg));
-                } catch (Exception e) {
-                    log.error("Error sending error message via WebSocket", e);
-                }
-
-                // End the battle after informing players
-                endBattle(battleId);
-                return;
-            } else {
-                // Reset answered questions to allow reusing questions if needed
-                battle.setAnsweredQuestions(new HashSet<>());
-                battleRepository.save(battle);
+            try {
+                Map<String, Object> errorMsg = new HashMap<>();
+                errorMsg.put("type", "ERROR");
+                errorMsg.put("message", "Not enough questions available for this battle. Battle ended.");
+                webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(errorMsg));
+            } catch (Exception e) {
+                log.error("Error sending error message via WebSocket", e);
             }
+
+            endBattle(battleId);
+            throw new CustomException("Not enough questions available for this battle. Battle ended.", HttpStatus.NOT_FOUND);
         }
 
-        // Map the question to a format suitable for the client
+        // Increment after confirming question exists
+        battleQuestionNumbers.put(battleId, currentQuestionNumber + 1);
+
+        // Send question to frontend
         Map<String, Object> questionData = new HashMap<>();
         questionData.put("questionId", question.getQuestionId());
         questionData.put("content", question.getContent());
@@ -186,13 +194,16 @@ public class BattleServiceImpl implements BattleService {
         Map<String, Object> questionMsg = new HashMap<>();
         questionMsg.put("type", "QUESTION");
         questionMsg.put("question", questionData);
+        questionMsg.put("currentQuestion", currentQuestionNumber + 1); // 1-based for FE
+        questionMsg.put("totalQuestions", 10);
 
-        // Send the question to all players in the battle
         try {
             webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(questionMsg));
         } catch (Exception e) {
             log.error("Error sending question via WebSocket", e);
         }
+
+        return mapData.mapOne(battle, BattleResponse.class);
     }
 
     @Override
@@ -204,43 +215,53 @@ public class BattleServiceImpl implements BattleService {
             throw new CustomException("The battle has ended!", HttpStatus.BAD_REQUEST);
         }
 
-        if (battle.getAnsweredQuestions().contains(request.getQuestionId())) {
-            throw new CustomException("This question has already been answered!", HttpStatus.CONFLICT);
+        String questionId = request.getQuestionId();
+        String key = battleId + ":" + questionId;
+
+        questionAnswers.putIfAbsent(key, new ArrayList<>());
+        List<AnswerRequest> answers = questionAnswers.get(key);
+
+        // Prevent duplicate answers
+        if (answers.stream().anyMatch(a -> a.getUserId().equals(request.getUserId()))) {
+            throw new CustomException("You have already answered this question!", HttpStatus.CONFLICT);
         }
 
-        boolean isCorrect = questionService.checkAnswer(request.getQuestionId(), request.getAnswer());
-        updateScore(battle, request.getUserId(), isCorrect);
-        battle.getAnsweredQuestions().add(request.getQuestionId());
+        answers.add(request);
 
-        battleRepository.save(battle);
-        BattleResponse updatedBattle = mapData.mapOne(battle, BattleResponse.class);
+        if (answers.size() == battle.getPlayerScores().size()) {
+            // Apply scoring once all players have answered (including timeout/null answers)
+            applyScoringLogic(battle, answers);
 
-        // Send updated battle state via WebSocket
-        try {
-            webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(updatedBattle));
-        } catch (Exception e) {
-            log.error("Error sending battle update via WebSocket", e);
-        }
+            // Mark question as answered
+            battle.getAnsweredQuestions().add(questionId);
+            questionAnswers.remove(key);
 
-        // Check if all players have answered
-        boolean allPlayersAnswered = true;
-        for (PlayerScore playerScore : battle.getPlayerScores()) {
-            // Logic to check if this player has answered the current question
-            // This may require additional tracking in your model
-        }
+            battleRepository.save(battle);
+            BattleResponse updatedBattle = mapData.mapOne(battle, BattleResponse.class);
 
-        // If all players answered, send the next question after a short delay
-        if (allPlayersAnswered) {
+            try {
+                Map<String, Object> updateMsg = new ObjectMapper().convertValue(updatedBattle, Map.class);
+                updateMsg.put("type", "SCORE_UPDATE");
+                webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(updateMsg));
+            } catch (Exception e) {
+                log.error("Error sending battle update via WebSocket", e);
+            }
+
+            // Next question or end
             CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
-                if (battle.getAnsweredQuestions().size() >= 10) {
+                if (battleQuestionNumbers.getOrDefault(battleId, 0) >= 10) {
                     endBattle(battleId);
                 } else {
                     sendNextQuestion(battleId);
                 }
             });
+
+            return mapData.mapOne(battle, BattleResponse.class);
         }
 
-        return updatedBattle;
+        // Save interim state if only one player answered
+        battleRepository.save(battle);
+        return mapData.mapOne(battle, BattleResponse.class);
     }
 
     @Override
@@ -257,6 +278,7 @@ public class BattleServiceImpl implements BattleService {
 
         battle.setStatus("ENDED");
         battle.setEndTime(Instant.now());
+        battleQuestionNumbers.remove(battleId);
 
         Optional<PlayerScore> winner = battle.getPlayerScores().stream()
                 .max(Comparator.comparingInt(PlayerScore::getScore));
@@ -305,8 +327,14 @@ public class BattleServiceImpl implements BattleService {
         }
     }
 
-    public void updateScore(Battle battle, String userId, boolean isCorrect) {
-        int points = isCorrect ? 10 : 0;
+    public void updateScore(Battle battle, String userId, boolean isCorrect, int timeTaken, boolean isFirstCorrect) {
+        int points;
+        if (isCorrect) {
+            points = isFirstCorrect ? 10 : 5; // First correct = 10 pts, second correct = 5 pts
+        } else {
+            points = 0;
+        }
+
         battle.getPlayerScores().stream()
                 .filter(p -> p.getUserId().equals(userId))
                 .findFirst()
@@ -324,5 +352,36 @@ public class BattleServiceImpl implements BattleService {
             return "No queue exists for this grade and subject.";
         }
         return "Players in queue: " + queue.size();
+    }
+
+    private void applyScoringLogic(Battle battle, List<AnswerRequest> answers) {
+        answers.sort(Comparator.comparingInt(AnswerRequest::getTimeTaken)); // Sort fastest first
+
+        boolean firstCorrect = questionService.checkAnswer(
+                answers.get(0).getQuestionId(), answers.get(0).getAnswer()
+        );
+
+        for (int i = 0; i < answers.size(); i++) {
+            AnswerRequest req = answers.get(i);
+            boolean isCorrect = questionService.checkAnswer(req.getQuestionId(), req.getAnswer());
+
+            int points;
+            if (isCorrect) {
+                if (i == 0) {
+                    points = 10; // First correct
+                } else if (!firstCorrect) {
+                    points = 10; // Second correct, first was wrong
+                } else {
+                    points = 5;  // Second correct, first was correct
+                }
+            } else {
+                points = 0;
+            }
+
+            battle.getPlayerScores().stream()
+                    .filter(p -> p.getUserId().equals(req.getUserId()))
+                    .findFirst()
+                    .ifPresent(p -> p.setScore(p.getScore() + points));
+        }
     }
 }

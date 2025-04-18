@@ -119,4 +119,19 @@ public class BattleController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving battle details: " + e.getMessage(), null));
         }
     }
+
+    @PostMapping("/{battleId}/nextQuestion")
+    public ResponseEntity<ResponseObject<BattleResponse>> sendNextQuestion(@PathVariable String battleId) {
+        try {
+            BattleResponse battleResponse = battleService.sendNextQuestion(battleId);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Next question sent successfully!", battleResponse));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error sending next question: " + e.getMessage(), null));
+        }
+    }
 }

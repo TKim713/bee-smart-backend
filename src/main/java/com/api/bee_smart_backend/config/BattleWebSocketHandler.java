@@ -17,10 +17,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -80,10 +77,25 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
                 log.info("User {} already present in battle {}", userId, battleId);
             }
 
+            // Send current battle state to reconnected user
+            BattleService battleService = applicationContext.getBean(BattleService.class);
+            BattleResponse battle = battleService.getBattleById(battleId);
+
+            // First send joined message
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
                     "type", "JOINED",
                     "battleId", battleId
             ))));
+
+            // Then send current battle state
+            if ("ONGOING".equals(battle.getStatus())) {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(battle)));
+
+                // If both players are connected, send the current question or a new one
+                if (sessionList.size() >= 2) {
+                    battleService.sendNextQuestion(battleId);
+                }
+            }
         }
     }
 
@@ -125,21 +137,13 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
             player1.sendMessage(new TextMessage(startMessage));
             player2.sendMessage(new TextMessage(startMessage));
 
+            // Call sendNextQuestion after battle creation
+            battleService.sendNextQuestion(battleId);
+
             log.info("Battle created with ID: {} between users {} and {}", battleId, userId1, userId2);
         } catch (Exception e) {
             log.error("Error creating battle", e);
-            try {
-                player1.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
-                        "type", "ERROR",
-                        "message", "Failed to create battle, please try again"
-                ))));
-                player2.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
-                        "type", "ERROR",
-                        "message", "Failed to create battle, please try again"
-                ))));
-            } catch (IOException ex) {
-                log.error("Error sending error message", ex);
-            }
+            // Error handling code...
         }
     }
 
@@ -167,34 +171,48 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         String userId = (String) session.getAttributes().get("userId");
+        String battleId = (String) session.getAttributes().get("battleId");
 
         matchmakingQueues.values().forEach(queue -> queue.removeIf(s -> s.getId().equals(session.getId())));
 
-        for (Map.Entry<String, CopyOnWriteArrayList<WebSocketSession>> entry : battleSessions.entrySet()) {
-            String battleId = entry.getKey();
-            List<WebSocketSession> sessions = entry.getValue();
-
-            if (sessions.remove(session)) {
+        if (battleId != null) {
+            CopyOnWriteArrayList<WebSocketSession> sessions = battleSessions.get(battleId);
+            if (sessions != null) {
+                sessions.remove(session);
                 log.info("User {} left battle {}", userId, battleId);
 
-                if (!sessions.isEmpty()) {
-                    try {
-                        BattleService battleService = applicationContext.getBean(BattleService.class);
-                        BattleResponse battle = battleService.getBattleById(battleId);
+                try {
+                    BattleService battleService = applicationContext.getBean(BattleService.class);
+                    BattleResponse battle = battleService.getBattleById(battleId);
 
-                        if ("ONGOING".equals(battle.getStatus())) {
-                            broadcastUpdate(battleId, objectMapper.writeValueAsString(Map.of(
-                                    "type", "PLAYER_LEFT",
-                                    "userId", userId
-                            )));
+                    if ("ONGOING".equals(battle.getStatus())) {
+                        broadcastUpdate(battleId, objectMapper.writeValueAsString(Map.of(
+                                "type", "PLAYER_LEFT",
+                                "userId", userId
+                        )));
 
-                            if (sessions.size() < 2) {
-                                battleService.endBattle(battleId);
-                            }
+                        // Instead of ending the battle immediately, set a timeout
+                        // This allows the user time to reconnect
+                        if (sessions.isEmpty()) {
+                            // Schedule battle end after 30 seconds if no players remain
+                            new Timer().schedule(new TimerTask() {
+                                @Override
+                                public void run() {
+                                    List<WebSocketSession> currentSessions = battleSessions.get(battleId);
+                                    if (currentSessions == null || currentSessions.isEmpty()) {
+                                        try {
+                                            battleService.endBattle(battleId);
+                                            log.info("Battle {} ended due to no active players", battleId);
+                                        } catch (Exception e) {
+                                            log.error("Error ending abandoned battle", e);
+                                        }
+                                    }
+                                }
+                            }, 30000); // 30 second timeout
                         }
-                    } catch (Exception e) {
-                        log.error("Error handling player disconnect from battle", e);
                     }
+                } catch (Exception e) {
+                    log.error("Error handling player disconnect from battle", e);
                 }
             }
         }

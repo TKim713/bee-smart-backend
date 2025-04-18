@@ -17,6 +17,8 @@ public interface BattleService {
     // 📌 Tạo một trận đấu mới
     BattleResponse createBattle(BattleRequest request);
 
+    BattleResponse sendNextQuestion(String battleId);
+
     // 📌 Gửi câu trả lời
     BattleResponse submitAnswer(String battleId, AnswerRequest request);
 
