@@ -5,16 +5,16 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Data
-public class TopicResponse {
-    private String topicId;
-    private String topicName;
-    private int topicNumber;
-    private String gradeName;
+public class SubjectResponse {
+    private String subjectId;
     private String subjectName;
-    private String semester;
-    private String bookName;
+    private Instant createdAt;
+    private Instant updatedAt;
+    private Instant deletedAt;
 }

@@ -4,8 +4,8 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -15,25 +15,15 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "topic")
-public class Topic {
+@Document(collection = "subject")
+public class Subject {
     @Id
-    private String topicId;
-    private String topicName;
-    private int topicNumber;
-
-    @DBRef
-    private Grade grade;
-    @DBRef
-    private Subject subject;
-    private String semester;
-
-    @DBRef
-    private BookType bookType;
+    private String subjectId;
+    private String subjectName;
 
     @DBRef
     @ToString.Exclude
-    private List<Lesson> lessons = new ArrayList<>();
+    private List<Topic> topics = new ArrayList<>();
 
     @CreatedDate
     private Instant createdAt;
@@ -41,9 +31,4 @@ public class Topic {
     private Instant updatedAt;
     @LastModifiedDate
     private Instant deletedAt;
-
-    public void addLesson(Lesson lesson) {
-        lessons.add(lesson);
-        lesson.setTopic(this);
-    }
 }
