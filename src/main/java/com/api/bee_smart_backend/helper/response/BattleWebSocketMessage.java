@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -15,5 +17,6 @@ public class BattleWebSocketMessage {
     private String userId;
     private String questionId;
     private String answer;
+    private List<String> answers;
     private int timeTaken;
 }

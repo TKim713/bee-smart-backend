@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -12,6 +14,7 @@ import lombok.NoArgsConstructor;
 public class AnswerRequest {
     private String userId;
     private String questionId;
-    private String answer;
+    private String answer;          // For MULTIPLE_CHOICE and FILL_IN_THE_BLANK
+    private List<String> answers;   // For MULTI_SELECT
     private int timeTaken;
 }

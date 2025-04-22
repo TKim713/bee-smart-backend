@@ -157,6 +157,7 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
                     userId,
                     msg.getQuestionId(),
                     msg.getAnswer(),
+                    msg.getAnswers(),
                     msg.getTimeTaken()
             );
 

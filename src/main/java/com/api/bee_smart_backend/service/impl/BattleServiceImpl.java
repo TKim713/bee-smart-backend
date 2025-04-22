@@ -192,7 +192,7 @@ public class BattleServiceImpl implements BattleService {
         questionData.put("options", question.getOptions());
 
         Map<String, Object> questionMsg = new HashMap<>();
-        questionMsg.put("type", "QUESTION");
+        questionMsg.put("type", question.getQuestionType().toString());
         questionMsg.put("question", questionData);
         questionMsg.put("currentQuestion", currentQuestionNumber + 1); // 1-based for FE
         questionMsg.put("totalQuestions", 10);
@@ -224,6 +224,12 @@ public class BattleServiceImpl implements BattleService {
         // Prevent duplicate answers
         if (answers.stream().anyMatch(a -> a.getUserId().equals(request.getUserId()))) {
             throw new CustomException("You have already answered this question!", HttpStatus.CONFLICT);
+        }
+
+        // If the answer is multi-select, convert to comma-separated string for compatibility
+        if (request.getAnswers() != null && !request.getAnswers().isEmpty()) {
+            String joinedAnswers = String.join(",", request.getAnswers());
+            request.setAnswer(joinedAnswers);
         }
 
         answers.add(request);

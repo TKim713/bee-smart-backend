@@ -203,25 +203,36 @@ public class QuestionServiceImpl implements QuestionService {
         Question question = questionRepository.findById(questionId)
                 .orElseThrow(() -> new CustomException("Câu hỏi không tồn tại!", HttpStatus.NOT_FOUND));
 
-        // Nếu là câu hỏi 1 đáp án
+        // If user didn't answer, it's always wrong
+        if (userAnswer == null) {
+            return false;
+        }
+
+        // For MULTIPLE_CHOICE questions
         if (question.getCorrectAnswer() != null) {
             return question.getCorrectAnswer().equalsIgnoreCase(userAnswer.trim());
         }
 
-        // Nếu là câu hỏi nhiều đáp án
+        // For MULTI_SELECT questions
         if (question.getCorrectAnswers() != null && !question.getCorrectAnswers().isEmpty()) {
-            List<String> userAnswers = Arrays.asList(userAnswer.split(",")); // Tách thành danh sách
+            List<String> userAnswers = Arrays.asList(userAnswer.split(","));
             return question.getCorrectAnswers().stream()
                     .map(String::trim)
                     .map(String::toLowerCase)
-                    .collect(Collectors.toSet()) // Đưa về Set để so sánh không phân biệt thứ tự
+                    .collect(Collectors.toSet())
                     .equals(userAnswers.stream()
                             .map(String::trim)
                             .map(String::toLowerCase)
                             .collect(Collectors.toSet()));
         }
 
-        return false; // Trường hợp không có đáp án nào
+        // For FILL_IN_THE_BLANK questions or other types
+        if (question.getAnswers() != null && !question.getAnswers().isEmpty()) {
+            return question.getAnswers().stream()
+                    .anyMatch(answer -> answer.equalsIgnoreCase(userAnswer.trim()));
+        }
+
+        return false;
     }
 
     @Override
