@@ -8,13 +8,16 @@ import com.api.bee_smart_backend.helper.request.BattleRequest;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
 import com.api.bee_smart_backend.model.Battle;
 import com.api.bee_smart_backend.model.Question;
+import com.api.bee_smart_backend.model.User;
 import com.api.bee_smart_backend.model.dto.PlayerScore;
 import com.api.bee_smart_backend.repository.BattleRepository;
+import com.api.bee_smart_backend.repository.UserRepository;
 import com.api.bee_smart_backend.service.BattleService;
 import com.api.bee_smart_backend.service.QuestionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -34,7 +37,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class BattleServiceImpl implements BattleService {
 
+    @Autowired
     private final BattleRepository battleRepository;
+    @Autowired
+    private final UserRepository userRepository;
     private final QuestionService questionService;
     private final BattleWebSocketHandler webSocketHandler;
     private final MapData mapData;
@@ -115,14 +121,18 @@ public class BattleServiceImpl implements BattleService {
             throw new CustomException("Battle must have exactly 2 players!", HttpStatus.BAD_REQUEST);
         }
 
+        List<PlayerScore> playerScores = request.getPlayerIds().stream().map(id -> {
+            User user = userRepository.findById(id)
+                    .orElseThrow(() -> new CustomException("User not found with ID: " + id, HttpStatus.NOT_FOUND));
+            return new PlayerScore(user.getUserId(), user.getUsername(), 0);
+        }).collect(Collectors.toList());
+
         Battle battle = new Battle();
         battle.setTopic(request.getTopic());
         battle.setGradeId(request.getGradeId());
         battle.setSubjectId(request.getSubjectId());
         battle.setStatus("ONGOING");
-        battle.setPlayerScores(request.getPlayerIds().stream()
-                .map(id -> new PlayerScore(id, 0))
-                .collect(Collectors.toList()));
+        battle.setPlayerScores(playerScores);
         battle.setStartTime(Instant.now());
         battle.setAnsweredQuestions(new HashSet<>());
 
