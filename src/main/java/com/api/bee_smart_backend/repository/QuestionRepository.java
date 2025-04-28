@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
+import java.util.Set;
 
 public interface QuestionRepository extends MongoRepository<Question, String> {
     List<Question> findByQuizAndDeletedAtIsNull(Quiz quiz);
@@ -14,4 +15,8 @@ public interface QuestionRepository extends MongoRepository<Question, String> {
     Page<Question> findByQuizAndDeletedAtIsNull(Quiz quiz, Pageable pageable);
 
     Page<Question> findByQuizAndContentContainingIgnoreCaseAndDeletedAtIsNull(Quiz quiz, String content, Pageable pageable);
+
+    List<Question> findByQuizInAndDeletedAtIsNull(List<Quiz> quizzes);
+
+    List<Question> findByQuizInAndQuestionIdNotInAndDeletedAtIsNull(List<Quiz> quizzes, Set<String> excludeIds);
 }

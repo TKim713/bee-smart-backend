@@ -7,11 +7,14 @@ import com.api.bee_smart_backend.helper.request.QuestionRequest;
 import com.api.bee_smart_backend.helper.response.QuestionResponse;
 import com.api.bee_smart_backend.model.Question;
 import com.api.bee_smart_backend.model.Quiz;
+import com.api.bee_smart_backend.model.Topic;
 import com.api.bee_smart_backend.repository.QuestionRepository;
 import com.api.bee_smart_backend.repository.QuizRepository;
+import com.api.bee_smart_backend.repository.TopicRepository;
 import com.api.bee_smart_backend.service.QuestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -20,9 +23,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -31,10 +33,13 @@ public class QuestionServiceImpl implements QuestionService {
     @Autowired
     private QuizRepository quizRepository;
     @Autowired
+    private TopicRepository topicRepository;
+    @Autowired
     private QuestionRepository questionRepository;
 
     private final MapData mapData;
     private final Instant now = Instant.now();
+    private final Random random = new Random();
 
     @Override
     public QuestionResponse addQuestionToQuiz(String quizId, QuestionRequest request) {
@@ -191,5 +196,107 @@ public class QuestionServiceImpl implements QuestionService {
             default:
                 throw new CustomException("Loại câu hỏi không hợp lệ", HttpStatus.BAD_REQUEST);
         }
+    }
+
+    @Override
+    public boolean checkAnswer(String questionId, String userAnswer) {
+        Question question = questionRepository.findById(questionId)
+                .orElseThrow(() -> new CustomException("Câu hỏi không tồn tại!", HttpStatus.NOT_FOUND));
+
+        // If user didn't answer, it's always wrong
+        if (userAnswer == null) {
+            return false;
+        }
+
+        // For MULTIPLE_CHOICE questions
+        if (question.getCorrectAnswer() != null) {
+            return question.getCorrectAnswer().equalsIgnoreCase(userAnswer.trim());
+        }
+
+        // For MULTI_SELECT questions
+        if (question.getCorrectAnswers() != null && !question.getCorrectAnswers().isEmpty()) {
+            List<String> userAnswers = Arrays.asList(userAnswer.split(","));
+            return question.getCorrectAnswers().stream()
+                    .map(String::trim)
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toSet())
+                    .equals(userAnswers.stream()
+                            .map(String::trim)
+                            .map(String::toLowerCase)
+                            .collect(Collectors.toSet()));
+        }
+
+        // For FILL_IN_THE_BLANK questions or other types
+        if (question.getAnswers() != null && !question.getAnswers().isEmpty()) {
+            return question.getAnswers().stream()
+                    .anyMatch(answer -> answer.equalsIgnoreCase(userAnswer.trim()));
+        }
+
+        return false;
+    }
+
+    @Override
+    public Question getRandomQuestionByGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
+        List<Question> questions = getQuestionsForGradeAndSubject(gradeId, subjectId, excludeIds);
+
+        if (questions == null || questions.isEmpty()) {
+            if (excludeIds != null && !excludeIds.isEmpty()) {
+                log.info("No unused questions found, retrying without exclusions");
+                questions = getQuestionsForGradeAndSubject(gradeId, subjectId, null);
+            }
+        }
+
+        // If still no questions, try questions from any subject in the same grade
+        if (questions == null || questions.isEmpty()) {
+            log.info("Falling back to any subject in the same grade");
+            List<Topic> allGradeTopics = topicRepository.findByGrade_GradeId(gradeId);
+            // Process topics to get questions...
+            // For now, just return null safely
+        }
+
+        if (questions == null || questions.isEmpty()) {
+            log.warn("No questions available for the provided criteria");
+            return null;
+        }
+
+        // Pick random question
+        return questions.get(random.nextInt(questions.size()));
+    }
+
+    private List<Question> getQuestionsForGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
+        // Step 1: Get topics
+        List<Topic> topics = topicRepository.findByGrade_GradeIdAndSubject_SubjectId(gradeId, subjectId);
+
+        if (topics.isEmpty()) {
+            log.warn("No topics found for grade {} and subject {}", gradeId, subjectId);
+            return null;
+        }
+
+        // Step 2: Get topic ObjectIds
+        List<ObjectId> topicObjectIds = topics.stream()
+                .map(topic -> new ObjectId(topic.getTopicId()))
+                .toList();
+
+        // Step 3: Get quizzes by topic.$id using custom @Query
+        List<Quiz> quizzes = quizRepository.findByTopicIds(topicObjectIds);
+
+        if (quizzes.isEmpty()) {
+            log.warn("No quizzes found for topics {}", topicObjectIds);
+            return null;
+        }
+
+        // Step 4: Get questions
+        List<Question> questions;
+        if (excludeIds == null || excludeIds.isEmpty()) {
+            questions = questionRepository.findByQuizInAndDeletedAtIsNull(quizzes);
+        } else {
+            questions = questionRepository.findByQuizInAndQuestionIdNotInAndDeletedAtIsNull(quizzes, excludeIds);
+        }
+
+        if (questions.isEmpty()) {
+            log.warn("No questions available for the provided criteria");
+            return null;
+        }
+        return questions;
     }
 }

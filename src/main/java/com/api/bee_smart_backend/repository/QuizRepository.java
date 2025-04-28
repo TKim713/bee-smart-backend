@@ -3,6 +3,7 @@ package com.api.bee_smart_backend.repository;
 import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Quiz;
 import com.api.bee_smart_backend.model.Topic;
+import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -22,4 +23,7 @@ public interface QuizRepository extends MongoRepository<Quiz, String> {
 
     @Query("{ 'topic' : ?0, 'lesson': null, 'deletedAt': null, '$or' : [ { 'topicName' : { '$regex' : ?1, '$options' : 'i' } }] }")
     Page<Quiz> findByTopicInAndLessonIsNullAndSearchAndDeletedAtIsNull(List<Topic> topics, String search, Pageable pageable);
+
+    @Query("{ 'topic.$id': { $in: ?0 } }")
+    List<Quiz> findByTopicIds(List<ObjectId> topicObjectIds);
 }

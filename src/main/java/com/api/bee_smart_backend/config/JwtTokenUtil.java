@@ -7,7 +7,9 @@ import java.util.Map;
 import java.util.function.Function;
 
 import com.api.bee_smart_backend.model.Token;
+import com.api.bee_smart_backend.model.User;
 import com.api.bee_smart_backend.repository.TokenRepository;
+import com.api.bee_smart_backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -27,15 +29,18 @@ public class JwtTokenUtil implements Serializable {
     @Autowired
     private TokenRepository tokenRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     @Value("${jwt.secret}")
     private String secret;
 
-    // Retrieve username from JWT token
+    // ✅ Lấy username từ token
     public String getUsernameFromToken(String token) {
         return getClaimFromToken(token, Claims::getSubject);
     }
 
-    // Retrieve expiration date from JWT token
+    // ✅ Lấy expiration date
     public Date getExpirationDateFromToken(String token) {
         return getClaimFromToken(token, Claims::getExpiration);
     }
@@ -49,7 +54,6 @@ public class JwtTokenUtil implements Serializable {
         return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
     }
 
-    // Check if the token has expired
     private Boolean isTokenExpired(String token) {
         final Date expiration = getExpirationDateFromToken(token);
         return expiration.before(new Date());
@@ -60,7 +64,14 @@ public class JwtTokenUtil implements Serializable {
         return savedToken != null && savedToken.isRevoked();
     }
 
-    // Generate token for user
+    // ✅ Thêm hàm getUserIdFromToken
+    public String getUserIdFromToken(String token) {
+        String username = getUsernameFromToken(token);
+        return userRepository.findByUsernameAndDeletedAtIsNull(username)
+                .map(User::getUserId)
+                .orElse(null);
+    }
+
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
         return doGenerateToken(claims, userDetails.getUsername());
@@ -85,12 +96,20 @@ public class JwtTokenUtil implements Serializable {
                 .compact();
     }
 
-    // Validate token
     public boolean validateToken(String token, UserDetails userDetails) {
         String username = getUsernameFromToken(token);
         return username.equals(userDetails.getUsername()) &&
                 !isTokenExpired(token) &&
                 !isTokenRevoked(token);
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            String username = getUsernameFromToken(token);
+            return username != null && !isTokenExpired(token) && !isTokenRevoked(token);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public boolean validateRefreshToken(String refreshToken) {
@@ -104,3 +123,4 @@ public class JwtTokenUtil implements Serializable {
         }
     }
 }
+
