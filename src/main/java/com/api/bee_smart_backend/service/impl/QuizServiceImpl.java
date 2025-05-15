@@ -1,6 +1,7 @@
 package com.api.bee_smart_backend.service.impl;
 
 import com.api.bee_smart_backend.config.MapData;
+import com.api.bee_smart_backend.config.NotificationWebSocketHandler;
 import com.api.bee_smart_backend.helper.enums.QuestionType;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.QuizRequest;
@@ -15,6 +16,7 @@ import com.api.bee_smart_backend.service.QuizService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -46,7 +48,11 @@ public class QuizServiceImpl implements QuizService {
     private final TokenRepository tokenRepository;
     @Autowired
     private final QuizRecordRepository quizRecordRepository;
+    @Autowired
+    private final NotificationRepository notificationRepository;
 
+    @Autowired
+    private ApplicationContext applicationContext;
     private final MapData mapData;
     private final Instant now = Instant.now();
     ZonedDateTime vietnamTime = ZonedDateTime.now(ZoneId.of("Asia/Ho_Chi_Minh"));
@@ -242,10 +248,10 @@ public class QuizServiceImpl implements QuizService {
                     .questionId(question.getQuestionId())
                     .content(question.getContent())
                     .image(question.getImage())
-                    .options(question.getOptions()) // Ensure this is populated correctly
-                    .correctAnswer(question.getCorrectAnswer()) // For single-choice, should return the correct answer.
-                    .correctAnswers(question.getCorrectAnswers() != null ? question.getCorrectAnswers() : question.getAnswers()) // For multi-select, this should return the list of correct answers
-                    .answers(userAnswer.getSelectedAnswers()) // Populate if this field exists (or remove if not needed)
+                    .options(question.getOptions())
+                    .correctAnswer(question.getCorrectAnswer())
+                    .correctAnswers(question.getCorrectAnswers() != null ? question.getCorrectAnswers() : question.getAnswers())
+                    .answers(userAnswer.getSelectedAnswers())
                     .userAnswer(userAnswer.getSelectedAnswer())
                     .isCorrect(isCorrect)
                     .build());
@@ -275,6 +281,30 @@ public class QuizServiceImpl implements QuizService {
                 .build();
 
         quizRecordRepository.save(quizRecord);
+
+        // Add notification if score is less than 5
+        if (points < 5) {
+            Notification notification = Notification.builder()
+                    .user(user)
+                    .title("Điểm số thấp trong bài kiểm tra")
+                    .message("Điểm của bạn trong " + quiz.getTitle() + " là " + points + ". Hãy xem lại bài học để cải thiện!")
+                    .type("QUIZ")
+                    .link("/topics/" + quiz.getTopic().getTopicId() + "/lessons-and-quizzes") // Link to skill list for review
+                    .read(false)
+                    .createdAt(now)
+                    .build();
+
+            // Save notification
+            notificationRepository.save(notification);
+
+            // Send real-time notification via WebSocket
+            try {
+                NotificationWebSocketHandler notificationHandler = applicationContext.getBean(NotificationWebSocketHandler.class);
+                notificationHandler.sendNotification(user.getUserId(), notification);
+            } catch (Exception e) {
+                log.error("Error sending notification", e);
+            }
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalQuestions", allQuestions.size());

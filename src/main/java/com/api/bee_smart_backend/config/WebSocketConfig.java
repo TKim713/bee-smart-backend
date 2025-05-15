@@ -16,10 +16,16 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Autowired
     private BattleWebSocketHandler battleWebSocketHandler;
 
+    @Autowired
+    private NotificationWebSocketHandler notificationWebSocketHandler;
+
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(battleWebSocketHandler, "/ws/battle")
                 .addInterceptors(handshakeInterceptor)
                 .setAllowedOrigins("*"); // Consider restricting in production
+        registry.addHandler(notificationWebSocketHandler, "/ws/notifications")
+                .addInterceptors(handshakeInterceptor)
+                .setAllowedOrigins("*");
     }
 }

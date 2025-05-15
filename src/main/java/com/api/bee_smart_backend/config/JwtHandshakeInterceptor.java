@@ -27,11 +27,35 @@ public class JwtHandshakeInterceptor implements HandshakeInterceptor {
 
         URI uri = request.getURI();
         MultiValueMap<String, String> queryParams = UriComponentsBuilder.fromUri(uri).build().getQueryParams();
+
+        // Support both token parameter names
         String token = queryParams.getFirst("battle-token");
+        if (token == null) {
+            token = queryParams.getFirst("noti-token");
+        }
 
         if (token != null && jwtTokenUtil.validateToken(token)) {
             String userId = jwtTokenUtil.getUserIdFromToken(token);
             attributes.put("userId", userId);
+
+            // Extract additional parameters for battle if needed
+            if (wsHandler instanceof BattleWebSocketHandler) {
+                String battleId = queryParams.getFirst("battleId");
+                if (battleId != null) {
+                    attributes.put("battleId", battleId);
+                }
+
+                String gradeId = queryParams.getFirst("gradeId");
+                if (gradeId != null) {
+                    attributes.put("gradeId", gradeId);
+                }
+
+                String subjectId = queryParams.getFirst("subjectId");
+                if (subjectId != null) {
+                    attributes.put("subjectId", subjectId);
+                }
+            }
+
             return true;
         }
 
