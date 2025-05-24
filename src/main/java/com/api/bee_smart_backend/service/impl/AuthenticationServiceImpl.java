@@ -104,6 +104,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         tokenRepository.save(newToken);
 
+        user.setOnline(true);
+        userRepository.save(user);
+
         return JwtResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
@@ -123,6 +126,11 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         token.setUpdatedAt(now);
         token.setDeletedAt(now);
         tokenRepository.save(token);
+
+        User user = userRepository.findByUserIdAndDeletedAtIsNull(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy user", HttpStatus.NOT_FOUND));
+        user.setOnline(false);
+        userRepository.save(user);
     }
 
     @Override

@@ -18,6 +18,7 @@ public class UserResponse {
     private String role;
     private boolean enabled;
     private boolean active;
+    private boolean isOnline;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
