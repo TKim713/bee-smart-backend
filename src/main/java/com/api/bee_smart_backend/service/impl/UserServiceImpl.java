@@ -195,6 +195,7 @@ public class UserServiceImpl implements UserService {
                         .role(user.getRole().name())
                         .enabled(user.isEnabled())
                         .active(user.isActive())
+                        .isOnline(user.isOnline())
                         .createdAt(user.getCreatedAt())
                         .updatedAt(user.getUpdatedAt())
                         .deletedAt(user.getDeletedAt())
@@ -275,6 +276,7 @@ public class UserServiceImpl implements UserService {
                 .role(Role.valueOf(studentRequest.getRole()))
                 .enabled(true)
                 .active(true)
+                .isOnline(false)
                 .createdAt(now)
                 .build();
 
