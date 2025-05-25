@@ -40,11 +40,13 @@ public class StatisticController {
     }
 
     @GetMapping("/admin/quiz-records")
-    public ResponseEntity<ResponseObject<Map<String, Object>>> getListQuizRecord(@RequestParam(name = "page", required = false) String page,
-                                                                                 @RequestParam(name = "size", required = false) String size,
-                                                                                 @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getListQuizRecord(
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size,
+            @RequestParam(name = "search", required = false, defaultValue = "") String search,
+            @RequestParam(name = "subject", required = false) String subject) {
         try {
-            Map<String, Object> result = statisticService.getListQuizRecord(page, size, search);
+            Map<String, Object> result = statisticService.getListQuizRecord(page, size, search, subject);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách lịch sử bài kiểm tra thành công", result.isEmpty() ? Collections.emptyMap() : result));
@@ -59,9 +61,10 @@ public class StatisticController {
             @PathVariable String userId,
             @RequestParam(name = "page", required = false) String page,
             @RequestParam(name = "size", required = false) String size,
-            @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+            @RequestParam(name = "search", required = false, defaultValue = "") String search,
+            @RequestParam(name = "subject", required = false) String subject) {
         try {
-            Map<String, Object> result = statisticService.getListQuizRecordByUser(userId, page, size, search);
+            Map<String, Object> result = statisticService.getListQuizRecordByUser(userId, page, size, search, subject);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách lịch sử bài kiểm tra thành công", result.isEmpty() ? Collections.emptyMap() : result));
@@ -73,10 +76,11 @@ public class StatisticController {
 
     @GetMapping("/admin/record-lesson-by-month")
     public ResponseEntity<ResponseObject<Map<String, Map<String, Integer>>>> getViewLessonByMonth(
-            @RequestParam(required = false) String date
+            @RequestParam(required = false) String date,
+            @RequestParam(name = "subject", required = false) String subject
     ) {
         try {
-            Map<String, Map<String, Integer>> chartData = statisticService.getViewLessonByMonth(date);
+            Map<String, Map<String, Integer>> chartData = statisticService.getViewLessonByMonth(date, subject);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu biểu đồ thành công", chartData));
@@ -87,9 +91,10 @@ public class StatisticController {
     }
 
     @GetMapping("/admin/quiz-submit-statistics")
-    public ResponseEntity<ResponseObject<Map<String, Double>>> getQuizStatistics() {
+    public ResponseEntity<ResponseObject<Map<String, Double>>> getQuizStatistics(
+            @RequestParam(name = "subject", required = false) String subject) {
         try {
-            Map<String, Double> chartData = statisticService.getQuizStatistics();
+            Map<String, Double> chartData = statisticService.getQuizStatistics(subject);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu biểu đồ thành công", chartData));
@@ -101,10 +106,11 @@ public class StatisticController {
 
     @GetMapping("/admin/quiz-by-month")
     public ResponseEntity<ResponseObject<Map<String, Map<String, Integer>>>> getQuizByMonth(
-            @RequestParam(required = false) String date
+            @RequestParam(required = false) String date,
+            @RequestParam(name = "subject", required = false) String subject
     ) {
         try {
-            Map<String, Map<String, Integer>> chartData = statisticService.getQuizByMonth(date);
+            Map<String, Map<String, Integer>> chartData = statisticService.getQuizByMonth(date, subject);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu biểu đồ thành công", chartData));
@@ -116,15 +122,28 @@ public class StatisticController {
 
     @GetMapping("/admin/quiz-average-by-month")
     public ResponseEntity<ResponseObject<Map<String, Map<String, Double>>>> getQuizAverageByMonth(
-            @RequestParam(required = false) String date
+            @RequestParam(required = false) String date,
+            @RequestParam(name = "subject", required = false) String subject
     ) {
         try {
-            Map<String, Map<String, Double>> chartData = statisticService.getQuizAverageByMonth(date);
+            Map<String, Map<String, Double>> chartData = statisticService.getQuizAverageByMonth(date, subject);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu biểu đồ điểm trung bình thành công", chartData));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu biểu đồ: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/admin/quiz-score-by-subject")
+    public ResponseEntity<ResponseObject<Map<String, Map<String, Integer>>>> getQuizScoreStatisticsBySubject() {
+        try {
+            Map<String, Map<String, Integer>> chartData = statisticService.getQuizScoreStatisticsBySubject();
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu thống kê điểm theo môn học thành công", chartData));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu thống kê: " + e.getMessage(), null));
         }
     }
 }

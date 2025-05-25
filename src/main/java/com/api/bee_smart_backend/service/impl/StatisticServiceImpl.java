@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -38,6 +39,10 @@ public class StatisticServiceImpl implements StatisticService {
     private final LessonRecordRepository lessonRecordRepository;
     @Autowired
     private final QuizRecordRepository quizRecordRepository;
+    @Autowired
+    private final TopicRepository topicRepository;
+    @Autowired
+    private final SubjectRepository subjectRepository;
 
     private final MapData mapData;
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -71,7 +76,7 @@ public class StatisticServiceImpl implements StatisticService {
     }
 
     @Override
-    public Map<String, Map<String, Integer>> getViewLessonByMonth(String date) {
+    public Map<String, Map<String, Integer>> getViewLessonByMonth(String date, String subjectName) {
         YearMonth currentYearMonth = YearMonth.now();
         LocalDate startDate = getLocalDate(date, currentYearMonth);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
@@ -87,6 +92,14 @@ public class StatisticServiceImpl implements StatisticService {
                 endDate.plusDays(1).atStartOfDay()
         );
 
+        // Filter by subject if provided
+        if (subjectName != null && !subjectName.isBlank()) {
+            List<String> lessonIdsForSubject = getLessonIdsBySubject(subjectName);
+            views = views.stream()
+                    .filter(view -> lessonIdsForSubject.contains(view.getLessonId()))
+                    .toList();
+        }
+
         Map<String, Map<String, Integer>> chartData = new LinkedHashMap<>();
         List<String> grades = List.of("Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5");
 
@@ -100,7 +113,7 @@ public class StatisticServiceImpl implements StatisticService {
         }
 
         for (LessonRecord view : views) {
-            String dateStr = view.getCreatedAt().format(DateTimeFormatter.ofPattern("dd-MM")); // Định dạng "ngày-tháng"
+            String dateStr = view.getCreatedAt().format(DateTimeFormatter.ofPattern("dd-MM"));
             String gradeName = view.getGradeName();
 
             if (gradeName == null) {
@@ -119,7 +132,7 @@ public class StatisticServiceImpl implements StatisticService {
     }
 
     @Override
-    public Map<String, Object> getListQuizRecord(String page, String size, String search) {
+    public Map<String, Object> getListQuizRecord(String page, String size, String search, String subjectName) {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
@@ -132,7 +145,33 @@ public class StatisticServiceImpl implements StatisticService {
             quizRecordPage = quizRecordRepository.findByQuizContainingIgnoreCaseOrUserContainingIgnoreCase(search, search, pageable);
         }
 
-        List<QuizRecordResponse> quizRecordResponses = quizRecordPage.getContent().stream()
+        List<QuizRecord> filteredRecords = quizRecordPage.getContent();
+
+        // Filter by subject if provided
+        if (subjectName != null && !subjectName.isBlank()) {
+            filteredRecords = filteredRecords.stream()
+                    .filter(record -> {
+                        Quiz quiz = record.getQuiz();
+                        if (quiz == null) return false;
+
+                        // Check if quiz has a lesson with the subject
+                        if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
+                            Subject subject = quiz.getLesson().getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        // Check if quiz has a topic with the subject
+                        if (quiz.getTopic() != null) {
+                            Subject subject = quiz.getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        return false;
+                    })
+                    .toList();
+        }
+
+        List<QuizRecordResponse> quizRecordResponses = filteredRecords.stream()
                 .map(quizRecord -> QuizRecordResponse.builder()
                         .recordId(quizRecord.getRecordId())
                         .username(quizRecord.getUser().getUsername())
@@ -146,16 +185,16 @@ public class StatisticServiceImpl implements StatisticService {
                 .toList();
 
         Map<String, Object> response = new HashMap<>();
-        response.put("totalItems", quizRecordPage.getTotalElements());
-        response.put("totalPages", quizRecordPage.getTotalPages());
-        response.put("currentPage", quizRecordPage.getNumber());
+        response.put("totalItems", (long) filteredRecords.size());
+        response.put("totalPages", (int) Math.ceil((double) filteredRecords.size() / pageSize));
+        response.put("currentPage", pageNumber);
         response.put("quizRecords", quizRecordResponses);
 
         return response;
     }
 
     @Override
-    public Map<String, Object> getListQuizRecordByUser(String userId, String page, String size, String search) {
+    public Map<String, Object> getListQuizRecordByUser(String userId, String page, String size, String search, String subjectName) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
@@ -171,7 +210,33 @@ public class StatisticServiceImpl implements StatisticService {
             quizRecordPage = quizRecordRepository.findByUserAndQuizTitleContainingIgnoreCase(user, search, pageable);
         }
 
-        List<QuizRecordResponse> quizRecordResponses = quizRecordPage.getContent().stream()
+        List<QuizRecord> filteredRecords = quizRecordPage.getContent();
+
+        // Filter by subject if provided
+        if (subjectName != null && !subjectName.isBlank()) {
+            filteredRecords = filteredRecords.stream()
+                    .filter(record -> {
+                        Quiz quiz = record.getQuiz();
+                        if (quiz == null) return false;
+
+                        // Check if quiz has a lesson with the subject
+                        if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
+                            Subject subject = quiz.getLesson().getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        // Check if quiz has a topic with the subject
+                        if (quiz.getTopic() != null) {
+                            Subject subject = quiz.getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        return false;
+                    })
+                    .collect(Collectors.toList());
+        }
+
+        List<QuizRecordResponse> quizRecordResponses = filteredRecords.stream()
                 .map(quizRecord -> QuizRecordResponse.builder()
                         .recordId(quizRecord.getRecordId())
                         .username(quizRecord.getUser().getUsername())
@@ -185,17 +250,41 @@ public class StatisticServiceImpl implements StatisticService {
                 .toList();
 
         Map<String, Object> response = new HashMap<>();
-        response.put("totalItems", quizRecordPage.getTotalElements());
-        response.put("totalPages", quizRecordPage.getTotalPages());
-        response.put("currentPage", quizRecordPage.getNumber());
+        response.put("totalItems", (long) filteredRecords.size());
+        response.put("totalPages", (int) Math.ceil((double) filteredRecords.size() / pageSize));
+        response.put("currentPage", pageNumber);
         response.put("quizRecords", quizRecordResponses);
 
         return response;
     }
 
     @Override
-    public Map<String, Double> getQuizStatistics() {
+    public Map<String, Double> getQuizStatistics(String subjectName) {
         List<QuizRecord> quizRecords = quizRecordRepository.findAll();
+
+        // Filter by subject if provided
+        if (subjectName != null && !subjectName.isBlank()) {
+            quizRecords = quizRecords.stream()
+                    .filter(record -> {
+                        Quiz quiz = record.getQuiz();
+                        if (quiz == null) return false;
+
+                        // Check if quiz has a lesson with the subject
+                        if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
+                            Subject subject = quiz.getLesson().getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        // Check if quiz has a topic with the subject
+                        if (quiz.getTopic() != null) {
+                            Subject subject = quiz.getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        return false;
+                    })
+                    .toList();
+        }
 
         Map<String, Integer> gradeCount = new HashMap<>();
         for (QuizRecord record : quizRecords) {
@@ -211,7 +300,7 @@ public class StatisticServiceImpl implements StatisticService {
         for (Map.Entry<String, Integer> entry : gradeCount.entrySet()) {
             String gradeName = entry.getKey();
             int count = entry.getValue();
-            double percentage = (double) count / totalQuizzes * 100;
+            double percentage = totalQuizzes > 0 ? (double) count / totalQuizzes * 100 : 0;
 
             chartData.put(gradeName, Math.round(percentage * 100.0) / 100.0);
         }
@@ -220,7 +309,7 @@ public class StatisticServiceImpl implements StatisticService {
     }
 
     @Override
-    public Map<String, Map<String, Integer>> getQuizByMonth(String date) {
+    public Map<String, Map<String, Integer>> getQuizByMonth(String date, String subjectName) {
         YearMonth currentYearMonth = YearMonth.now();
         LocalDate startDate = getLocalDate(date, currentYearMonth);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
@@ -234,6 +323,30 @@ public class StatisticServiceImpl implements StatisticService {
                 startDate.atStartOfDay(),
                 endDate.plusDays(1).atStartOfDay()
         );
+
+        // Filter by subject if provided
+        if (subjectName != null && !subjectName.isBlank()) {
+            quizRecords = quizRecords.stream()
+                    .filter(record -> {
+                        Quiz quiz = record.getQuiz();
+                        if (quiz == null) return false;
+
+                        // Check if quiz has a lesson with the subject
+                        if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
+                            Subject subject = quiz.getLesson().getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        // Check if quiz has a topic with the subject
+                        if (quiz.getTopic() != null) {
+                            Subject subject = quiz.getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        return false;
+                    })
+                    .toList();
+        }
 
         Map<String, Map<String, Integer>> chartData = new LinkedHashMap<>();
         List<String> grades = List.of("Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5");
@@ -248,7 +361,7 @@ public class StatisticServiceImpl implements StatisticService {
         }
 
         for (QuizRecord record : quizRecords) {
-            String dateStr = record.getSubmitDate().format(DateTimeFormatter.ofPattern("dd-MM")); // Lấy ngày dưới dạng dd-MM
+            String dateStr = record.getSubmitDate().format(DateTimeFormatter.ofPattern("dd-MM"));
             String gradeName = record.getGradeName();
 
             if (gradeName == null) {
@@ -259,14 +372,14 @@ public class StatisticServiceImpl implements StatisticService {
 
             Map<String, Integer> gradeQuizCount = chartData.get(dateStr);
             int currentCount = gradeQuizCount.getOrDefault(gradeName, 0);
-            gradeQuizCount.put(gradeName, currentCount + 1); // Tăng số lượng bài làm của lớp đó
+            gradeQuizCount.put(gradeName, currentCount + 1);
         }
 
         return chartData;
     }
 
     @Override
-    public Map<String, Map<String, Double>> getQuizAverageByMonth(String date) {
+    public Map<String, Map<String, Double>> getQuizAverageByMonth(String date, String subjectName) {
         YearMonth currentYearMonth = YearMonth.now();
         LocalDate startDate = getLocalDate(date, currentYearMonth);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
@@ -280,6 +393,30 @@ public class StatisticServiceImpl implements StatisticService {
                 startDate.atStartOfDay(),
                 endDate.plusDays(1).atStartOfDay()
         );
+
+        // Filter by subject if provided
+        if (subjectName != null && !subjectName.isBlank()) {
+            quizRecords = quizRecords.stream()
+                    .filter(record -> {
+                        Quiz quiz = record.getQuiz();
+                        if (quiz == null) return false;
+
+                        // Check if quiz has a lesson with the subject
+                        if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
+                            Subject subject = quiz.getLesson().getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        // Check if quiz has a topic with the subject
+                        if (quiz.getTopic() != null) {
+                            Subject subject = quiz.getTopic().getSubject();
+                            return subject != null && subjectName.equals(subject.getSubjectName());
+                        }
+
+                        return false;
+                    })
+                    .toList();
+        }
 
         Map<String, Map<String, Integer>> totalQuizCount = new LinkedHashMap<>();
         Map<String, Map<String, Double>> totalPoints = new LinkedHashMap<>();
@@ -329,7 +466,7 @@ public class StatisticServiceImpl implements StatisticService {
 
                 if (totalQuizzesForGrade > 0) {
                     double averageScore = totalPointsForGrade / totalQuizzesForGrade;
-                    dailyAverageScores.put(grade, Math.round(averageScore * 100.0) / 100.0); // Round to 2 decimal places
+                    dailyAverageScores.put(grade, Math.round(averageScore * 100.0) / 100.0);
                 } else {
                     dailyAverageScores.put(grade, 0.0);
                 }
@@ -339,35 +476,131 @@ public class StatisticServiceImpl implements StatisticService {
         return averageScores;
     }
 
+    @Override
+    public Map<String, Map<String, Integer>> getQuizScoreStatisticsBySubject() {
+        List<QuizRecord> quizRecords = quizRecordRepository.findAll();
+        List<Subject> subjects = subjectRepository.findAll();
+
+        // Define score groups
+        List<String> scoreGroups = List.of(
+                "0.0 - <4.0",
+                "4.0 - <5.0",
+                "5.0 - <7.0",
+                "7.0 - <8.0",
+                "8.0 - <9.0",
+                "9.0 - 10.0"
+        );
+
+        Map<String, Map<String, Integer>> chartData = new LinkedHashMap<>();
+
+        // Initialize chart data for all subjects
+        for (Subject subject : subjects) {
+            String subjectName = subject.getSubjectName();
+            chartData.put(subjectName, new LinkedHashMap<>());
+
+            for (String scoreGroup : scoreGroups) {
+                chartData.get(subjectName).put(scoreGroup, 0);
+            }
+        }
+
+        // Process quiz records
+        for (QuizRecord record : quizRecords) {
+            Quiz quiz = record.getQuiz();
+            if (quiz == null) continue;
+
+            String subjectName = null;
+
+            // Get subject from quiz's lesson or topic
+            if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
+                Subject subject = quiz.getLesson().getTopic().getSubject();
+                if (subject != null) {
+                    subjectName = subject.getSubjectName();
+                }
+            } else if (quiz.getTopic() != null) {
+                Subject subject = quiz.getTopic().getSubject();
+                if (subject != null) {
+                    subjectName = subject.getSubjectName();
+                }
+            }
+
+            if (subjectName == null) continue;
+
+            // Determine score group
+            double points = record.getPoints();
+            String scoreGroup = getScoreGroup(points);
+
+            // Update count for the subject and score group
+            Map<String, Integer> subjectData = chartData.get(subjectName);
+            if (subjectData != null) {
+                int currentCount = subjectData.getOrDefault(scoreGroup, 0);
+                subjectData.put(scoreGroup, currentCount + 1);
+            }
+        }
+
+        // Remove subjects with no quiz records
+        chartData.entrySet().removeIf(entry ->
+                entry.getValue().values().stream().allMatch(count -> count == 0)
+        );
+
+        return chartData;
+    }
+
+    private String getScoreGroup(double score) {
+        if (score >= 0.0 && score < 4.0) {
+            return "0.0 - <4.0";
+        } else if (score >= 4.0 && score < 5.0) {
+            return "4.0 - <5.0";
+        } else if (score >= 5.0 && score < 7.0) {
+            return "5.0 - <7.0";
+        } else if (score >= 7.0 && score < 8.0) {
+            return "7.0 - <8.0";
+        } else if (score >= 8.0 && score < 9.0) {
+            return "8.0 - <9.0";
+        } else if (score >= 9.0 && score <= 10.0) {
+            return "9.0 - 10.0";
+        } else {
+            // Handle edge case for scores outside expected range
+            return "0.0 - <4.0";
+        }
+    }
+
+    private List<String> getLessonIdsBySubject(String subjectName) {
+        Subject subject = subjectRepository.findBySubjectName(subjectName);
+        if (subject == null) {
+            return List.of();
+        }
+
+        List<Topic> topics = topicRepository.findBySubject(subject);
+
+        return topics.stream()
+                .flatMap(topic -> topic.getLessons().stream())
+                .map(Lesson::getLessonId)
+                .collect(Collectors.toList());
+    }
 
     private static LocalDate getLocalDate(String date, YearMonth currentYearMonth) {
         int queryYear;
         int queryMonth;
 
         if (date != null && !date.isEmpty()) {
-            // Chia chuỗi date thành tháng và năm (MM-yyyy)
             String[] parts = date.split("-");
             if (parts.length == 2) {
                 try {
-                    queryMonth = Integer.parseInt(parts[0]); // Month part
-                    queryYear = Integer.parseInt(parts[1]); // Year part
+                    queryMonth = Integer.parseInt(parts[0]);
+                    queryYear = Integer.parseInt(parts[1]);
                 } catch (NumberFormatException e) {
-                    // Nếu không thể phân tích tháng/năm, sử dụng năm tháng hiện tại
                     queryYear = currentYearMonth.getYear();
                     queryMonth = currentYearMonth.getMonthValue();
                 }
             } else {
-                // Nếu định dạng không đúng, sử dụng tháng và năm hiện tại
                 queryYear = currentYearMonth.getYear();
                 queryMonth = currentYearMonth.getMonthValue();
             }
         } else {
-            // Nếu không có tham số date, sử dụng tháng và năm hiện tại
             queryYear = currentYearMonth.getYear();
             queryMonth = currentYearMonth.getMonthValue();
         }
 
-        // Xác định ngày bắt đầu và ngày kết thúc của tháng
         return LocalDate.of(queryYear, queryMonth, 1);
     }
 }
