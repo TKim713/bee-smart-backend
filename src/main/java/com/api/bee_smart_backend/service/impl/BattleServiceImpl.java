@@ -6,7 +6,10 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
+import com.api.bee_smart_backend.helper.response.LessonResponse;
+import com.api.bee_smart_backend.helper.response.UserResponse;
 import com.api.bee_smart_backend.model.Battle;
+import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Question;
 import com.api.bee_smart_backend.model.User;
 import com.api.bee_smart_backend.model.dto.PlayerScore;
@@ -431,5 +434,35 @@ public class BattleServiceImpl implements BattleService {
                     .findFirst()
                     .ifPresent(p -> p.setScore(p.getScore() + points));
         }
+    }
+
+    @Override
+    public Map<String, Object> getOnlineList(String page, String size, String search) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Page<User> userPage;
+
+        if (search == null || search.isBlank()) {
+            // Get all online users who are not deleted
+            userPage = userRepository.findByIsOnlineTrueAndDeletedAtIsNull(pageable);
+        } else {
+            // Search online users by username or email
+            userPage = userRepository.findByIsOnlineTrueAndDeletedAtIsNullAndUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                    search, search, pageable);
+        }
+
+        List<UserResponse> responses = userPage.getContent().stream()
+                .map(user -> mapData.mapOne(user, UserResponse.class))
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalItems", userPage.getTotalElements());
+        response.put("totalPages", userPage.getTotalPages());
+        response.put("currentPage", userPage.getNumber());
+        response.put("users", responses);
+
+        return response;
     }
 }

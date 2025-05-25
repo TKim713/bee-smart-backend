@@ -29,4 +29,6 @@ public interface BattleService {
     void endBattle(String battleId);
 
     String checkMatchmakingStatus(String gradeId, String subjectId);
+
+    Map<String, Object> getOnlineList(String page, String size, String search);
 }
