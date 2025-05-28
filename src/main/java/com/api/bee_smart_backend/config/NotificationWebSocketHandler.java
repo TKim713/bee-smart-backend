@@ -93,4 +93,19 @@ public class NotificationWebSocketHandler extends TextWebSocketHandler {
             }
         }
     }
+
+    public void sendInvitationUpdate(String userId, String type, Object data) {
+        WebSocketSession session = userSessions.get(userId);
+        if (session != null && session.isOpen()) {
+            try {
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                        "type", type,
+                        "data", data
+                ))));
+                log.info("Invitation update sent to user {}: {}", userId, type);
+            } catch (IOException e) {
+                log.error("Error sending invitation update to user {}", userId, e);
+            }
+        }
+    }
 }

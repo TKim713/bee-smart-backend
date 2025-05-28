@@ -97,4 +97,13 @@ public class NotificationServiceImpl implements NotificationService {
         }
         return notifications.size();
     }
+
+    @Override
+    public int getUnreadCount(String token) {
+        String userId = getUserIdFromToken(token);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng với ID: " + userId, HttpStatus.NOT_FOUND));
+
+        return notificationRepository.countByUserAndReadFalseAndDeletedAtIsNull(user);
+    }
 }

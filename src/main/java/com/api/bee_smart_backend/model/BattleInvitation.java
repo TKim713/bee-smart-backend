@@ -16,19 +16,30 @@ import java.time.Instant;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "battle_user")
-public class BattleUser {
+@Document(collection = "battle_invitation")
+public class BattleInvitation {
     @Id
-    private String battleUserId;
+    private String invitationId;
+
     @DBRef
-    private User user;
-    private int totalBattle;
-    private int totalScore;
+    private User inviter; // User who sent the invitation
+
+    @DBRef
+    private User invitee; // User who received the invitation
+
+    private String gradeId;
+    private String subjectId;
+    private String topic;
+
+    @Builder.Default
+    private String status = "PENDING"; // PENDING, ACCEPTED, DECLINED, EXPIRED
+
+    private String battleId; // Set when invitation is accepted and battle is created
 
     @CreatedDate
     private Instant createdAt;
     @LastModifiedDate
     private Instant updatedAt;
     @LastModifiedDate
-    private Instant deletedAt;
+    private Instant expiresAt;
 }
