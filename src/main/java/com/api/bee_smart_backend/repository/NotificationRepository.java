@@ -14,4 +14,6 @@ public interface NotificationRepository extends MongoRepository<Notification, St
     List<Notification> findByUserAndDeletedAtIsNullOrderByCreatedAtDesc(User user);
 
     int countByUserAndReadFalseAndDeletedAtIsNull(User user);
+
+    List<Notification> findByUserAndReadFalseAndDeletedAtIsNull(User user);
 }
