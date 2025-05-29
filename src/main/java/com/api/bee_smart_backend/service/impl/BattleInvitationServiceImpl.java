@@ -177,19 +177,23 @@ public class BattleInvitationServiceImpl implements BattleInvitationService {
         invitation.setUpdatedAt(Instant.now());
         invitationRepository.save(invitation);
 
-        // Notify inviter that invitation was accepted
+        // Send immediate battle redirect message to inviter (no notification needed)
+        notificationWebSocketHandler.sendBattleAcceptedMessage(
+                invitation.getInviter().getUserId(),
+                battle.getBattleId()
+        );
+
+        // Create notification for inviter (for history purposes, but won't trigger browser notification)
         Notification inviterNotification = Notification.builder()
                 .user(invitation.getInviter())
                 .title("Lời mời được chấp nhận")
                 .message(user.getUsername() + " đã chấp nhận lời mời thách đấu")
-                .link("/battle/" + battle.getBattleId())
+                .link("/battle-detail/" + battle.getBattleId()) // Update to use battle-detail
                 .type("BATTLE_ACCEPTED")
-                .read(false)
+                .read(true) // Mark as read since user is auto-redirected
                 .build();
 
         notificationRepository.save(inviterNotification);
-        //notificationWebSocketHandler.sendInvitationUpdate(invitation.getInviter().getUserId(), "BATTLE_INVITATION_ACCEPTED", invitation);
-        notificationWebSocketHandler.sendNotification(invitation.getInviter().getUserId(), inviterNotification);
 
         log.info("Battle invitation {} accepted, battle {} created", invitationId, battle.getBattleId());
 
