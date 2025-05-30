@@ -483,12 +483,11 @@ public class StatisticServiceImpl implements StatisticService {
 
         // Define score groups
         List<String> scoreGroups = List.of(
-                "0.0 - <4.0",
-                "4.0 - <5.0",
-                "5.0 - <7.0",
-                "7.0 - <8.0",
-                "8.0 - <9.0",
-                "9.0 - 10.0"
+                "0.0 - 3.4",
+                "3.5 - 4.9",
+                "5.0 - 6.4",
+                "6.5 - 7.9",
+                "8.0 - 10.0"
         );
 
         Map<String, Map<String, Integer>> chartData = new LinkedHashMap<>();
@@ -546,21 +545,19 @@ public class StatisticServiceImpl implements StatisticService {
     }
 
     private String getScoreGroup(double score) {
-        if (score >= 0.0 && score < 4.0) {
-            return "0.0 - <4.0";
-        } else if (score >= 4.0 && score < 5.0) {
-            return "4.0 - <5.0";
-        } else if (score >= 5.0 && score < 7.0) {
-            return "5.0 - <7.0";
-        } else if (score >= 7.0 && score < 8.0) {
-            return "7.0 - <8.0";
-        } else if (score >= 8.0 && score < 9.0) {
-            return "8.0 - <9.0";
-        } else if (score >= 9.0 && score <= 10.0) {
-            return "9.0 - 10.0";
+        if (score >= 0.0 && score <= 3.4) {
+            return "0.0 - 3.4";
+        } else if (score >= 3.5 && score <= 4.9) {
+            return "3.5 - 4.9";
+        } else if (score >= 5.0 && score <= 6.4) {
+            return "5.0 - 6.4";
+        } else if (score >= 6.5 && score <= 7.9) {
+            return "6.5 - 7.9";
+        } else if (score >= 8.0 && score <= 10.0) {
+            return "8.0 - 10.0";
         } else {
             // Handle edge case for scores outside expected range
-            return "0.0 - <4.0";
+            return "0.0 - 3.4";
         }
     }
 
