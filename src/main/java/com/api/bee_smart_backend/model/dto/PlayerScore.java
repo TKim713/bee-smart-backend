@@ -13,4 +13,6 @@ public class PlayerScore {
     private String userId;
     private String username;
     private int score;
+    private int correctAnswers; // New field for correct answers
+    private int incorrectAnswers;
 }

@@ -127,7 +127,7 @@ public class BattleServiceImpl implements BattleService {
         List<PlayerScore> playerScores = request.getPlayerIds().stream().map(id -> {
             User user = userRepository.findById(id)
                     .orElseThrow(() -> new CustomException("User not found with ID: " + id, HttpStatus.NOT_FOUND));
-            return new PlayerScore(user.getUserId(), user.getUsername(), 0);
+            return new PlayerScore(user.getUserId(), user.getUsername(), 0, 0, 0);
         }).collect(Collectors.toList());
 
         Battle battle = new Battle();
@@ -390,7 +390,7 @@ public class BattleServiceImpl implements BattleService {
     private void applyScoringLogic(Battle battle, List<AnswerRequest> answers) {
         if (answers == null || answers.isEmpty()) return;
 
-        // ✅ If only one player answered, give them 10 points if correct
+        // If only one player answered, give them 10 points if correct
         if (answers.size() == 1) {
             AnswerRequest only = answers.get(0);
             boolean correct = questionService.checkAnswer(only.getQuestionId(), only.getAnswer());
@@ -400,12 +400,19 @@ public class BattleServiceImpl implements BattleService {
             battle.getPlayerScores().stream()
                     .filter(p -> p.getUserId().equals(only.getUserId()))
                     .findFirst()
-                    .ifPresent(p -> p.setScore(p.getScore() + points));
+                    .ifPresent(p -> {
+                        p.setScore(p.getScore() + points);
+                        if (correct) {
+                            p.setCorrectAnswers(p.getCorrectAnswers() + 1);
+                        } else {
+                            p.setIncorrectAnswers(p.getIncorrectAnswers() + 1);
+                        }
+                    });
 
             return;
         }
 
-        // ✅ If two players answered, score based on order + correctness
+        // If two players answered, score based on order + correctness
         answers.sort(Comparator.comparingInt(AnswerRequest::getTimeTaken)); // Faster first
 
         boolean firstCorrect = questionService.checkAnswer(
@@ -432,7 +439,14 @@ public class BattleServiceImpl implements BattleService {
             battle.getPlayerScores().stream()
                     .filter(p -> p.getUserId().equals(req.getUserId()))
                     .findFirst()
-                    .ifPresent(p -> p.setScore(p.getScore() + points));
+                    .ifPresent(p -> {
+                        p.setScore(p.getScore() + points);
+                        if (isCorrect) {
+                            p.setCorrectAnswers(p.getCorrectAnswers() + 1);
+                        } else {
+                            p.setIncorrectAnswers(p.getIncorrectAnswers() + 1);
+                        }
+                    });
         }
     }
 
