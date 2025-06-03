@@ -28,7 +28,14 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                                    WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
         if (request instanceof ServletServerHttpRequest servletRequest) {
             HttpServletRequest httpServletRequest = servletRequest.getServletRequest();
-            String token = httpServletRequest.getParameter("battle-token");
+
+            // Check for battle-token or token parameter based on the WebSocket handler type
+            String token = null;
+            if (wsHandler instanceof BattleWebSocketHandler) {
+                token = httpServletRequest.getParameter("battle-token");
+            } else if (wsHandler instanceof NotificationWebSocketHandler) {
+                token = httpServletRequest.getParameter("noti-token");
+            }
 
             if (token != null && jwtTokenUtil.validateToken(token)) {
                 String username = jwtTokenUtil.getUsernameFromToken(token);
@@ -39,20 +46,22 @@ public class WebSocketHandshakeInterceptor implements HandshakeInterceptor {
                     String userId = userOptional.get().getUserId();
                     attributes.put("userId", userId);
 
-                    // Extract additional parameters
-                    String battleId = httpServletRequest.getParameter("battleId");
-                    if (battleId != null) {
-                        attributes.put("battleId", battleId);
-                    }
+                    // Extract additional parameters for battle
+                    if (wsHandler instanceof BattleWebSocketHandler) {
+                        String battleId = httpServletRequest.getParameter("battleId");
+                        if (battleId != null) {
+                            attributes.put("battleId", battleId);
+                        }
 
-                    String gradeId = httpServletRequest.getParameter("gradeId");
-                    if (gradeId != null) {
-                        attributes.put("gradeId", gradeId);
-                    }
+                        String gradeId = httpServletRequest.getParameter("gradeId");
+                        if (gradeId != null) {
+                            attributes.put("gradeId", gradeId);
+                        }
 
-                    String subjectId = httpServletRequest.getParameter("subjectId");
-                    if (subjectId != null) {
-                        attributes.put("subjectId", subjectId);
+                        String subjectId = httpServletRequest.getParameter("subjectId");
+                        if (subjectId != null) {
+                            attributes.put("subjectId", subjectId);
+                        }
                     }
 
                     return true;
