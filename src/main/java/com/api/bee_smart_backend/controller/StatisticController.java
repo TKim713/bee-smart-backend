@@ -146,4 +146,42 @@ public class StatisticController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu thống kê: " + e.getMessage(), null));
         }
     }
+
+    @GetMapping("/admin/battle-users-by-subject")
+    public ResponseEntity<ResponseObject<Map<String, Integer>>> getUsersJoinedBattleBySubject() {
+        try {
+            Map<String, Integer> chartData = statisticService.getUsersJoinedBattleBySubject();
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu số người tham gia battle theo môn học thành công", chartData));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/admin/battle-score-by-subject")
+    public ResponseEntity<ResponseObject<Map<String, Map<String, Integer>>>> getBattleScoreDistributionBySubject() {
+        try {
+            Map<String, Map<String, Integer>> chartData = statisticService.getBattleScoreDistributionBySubject();
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu phân bố điểm battle theo môn học thành công", chartData));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/admin/battle-average-by-month")
+    public ResponseEntity<ResponseObject<Map<String, Double>>> getBattleAverageByMonth(
+            @RequestParam(required = false) String date,
+            @RequestParam(name = "subject", required = false) String subject) {
+        try {
+            Map<String, Double> chartData = statisticService.getBattleAveragePointsByMonth(date, subject);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu điểm trung bình battle theo tháng thành công", chartData));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi lấy dữ liệu: " + e.getMessage(), null));
+        }
+    }
 }

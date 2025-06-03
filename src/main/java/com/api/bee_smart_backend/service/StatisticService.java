@@ -20,4 +20,10 @@ public interface StatisticService {
     Map<String, Map<String, Double>> getQuizAverageByMonth(String date, String subject);
 
     Map<String, Map<String, Integer>> getQuizScoreStatisticsBySubject();
+
+    Map<String, Integer> getUsersJoinedBattleBySubject();
+
+    Map<String, Map<String, Integer>> getBattleScoreDistributionBySubject();
+
+    Map<String, Double> getBattleAveragePointsByMonth(String date, String subjectName);
 }

@@ -11,6 +11,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -32,8 +33,8 @@ public class Battle {
     private String gradeId;
     private String subjectId;
 
-    private Instant startTime;
-    private Instant endTime;
+    private LocalDate startTime;
+    private LocalDate endTime;
     private Set<String> answeredQuestions = new HashSet<>();
 
     @CreatedDate

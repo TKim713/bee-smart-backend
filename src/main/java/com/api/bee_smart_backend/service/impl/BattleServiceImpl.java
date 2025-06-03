@@ -6,13 +6,11 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
-import com.api.bee_smart_backend.helper.response.LessonResponse;
 import com.api.bee_smart_backend.helper.response.UserResponse;
 import com.api.bee_smart_backend.model.Battle;
-import com.api.bee_smart_backend.model.Lesson;
+import com.api.bee_smart_backend.model.dto.PlayerScore;
 import com.api.bee_smart_backend.model.Question;
 import com.api.bee_smart_backend.model.User;
-import com.api.bee_smart_backend.model.dto.PlayerScore;
 import com.api.bee_smart_backend.repository.BattleRepository;
 import com.api.bee_smart_backend.repository.UserRepository;
 import com.api.bee_smart_backend.service.BattleService;
@@ -30,7 +28,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -136,7 +136,7 @@ public class BattleServiceImpl implements BattleService {
         battle.setSubjectId(request.getSubjectId());
         battle.setStatus("ONGOING");
         battle.setPlayerScores(playerScores);
-        battle.setStartTime(Instant.now());
+        battle.setStartTime(LocalDate.now(ZoneId.systemDefault())); // Updated to LocalDate
         battle.setAnsweredQuestions(new HashSet<>());
 
         Battle savedBattle = battleRepository.save(battle);
@@ -327,7 +327,7 @@ public class BattleServiceImpl implements BattleService {
                 .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
 
         battle.setStatus("ENDED");
-        battle.setEndTime(Instant.now());
+        battle.setEndTime(LocalDate.now(ZoneId.systemDefault())); // Updated to LocalDate
         battleQuestionNumbers.remove(battleId);
 
         Optional<PlayerScore> winner = battle.getPlayerScores().stream()
@@ -349,13 +349,16 @@ public class BattleServiceImpl implements BattleService {
 
     @Scheduled(fixedRate = 60000)
     public void checkTimeoutBattles() {
-        Instant now = Instant.now();
+        LocalDate today = LocalDate.now(ZoneId.systemDefault());
         List<Battle> ongoing = battleRepository.findAllByStatus("ONGOING");
 
         for (Battle battle : ongoing) {
-            if (battle.getStartTime() != null && Duration.between(battle.getStartTime(), now).toMinutes() > 10) {
+            if (battle.getStartTime() != null && Duration.between(
+                    battle.getStartTime().atStartOfDay(ZoneId.systemDefault()),
+                    today.atStartOfDay(ZoneId.systemDefault())
+            ).toDays() >= 1) { // Changed to compare days
                 battle.setStatus("ENDED");
-                battle.setEndTime(now);
+                battle.setEndTime(today); // Updated to LocalDate
 
                 Optional<PlayerScore> winner = battle.getPlayerScores().stream()
                         .max(Comparator.comparingInt(PlayerScore::getScore));

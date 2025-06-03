@@ -5,6 +5,7 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.response.QuizRecordResponse;
 import com.api.bee_smart_backend.helper.response.StatisticResponse;
 import com.api.bee_smart_backend.model.*;
+import com.api.bee_smart_backend.model.dto.PlayerScore;
 import com.api.bee_smart_backend.model.record.LessonRecord;
 import com.api.bee_smart_backend.model.record.QuizRecord;
 import com.api.bee_smart_backend.repository.*;
@@ -23,10 +24,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -43,6 +41,8 @@ public class StatisticServiceImpl implements StatisticService {
     private final TopicRepository topicRepository;
     @Autowired
     private final SubjectRepository subjectRepository;
+    @Autowired
+    private final BattleRepository battleRepository;
 
     private final MapData mapData;
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -599,5 +599,143 @@ public class StatisticServiceImpl implements StatisticService {
         }
 
         return LocalDate.of(queryYear, queryMonth, 1);
+    }
+
+    @Override
+    public Map<String, Integer> getUsersJoinedBattleBySubject() {
+        // Unchanged from previous implementation
+        List<Battle> battles = battleRepository.findAll();
+
+        Map<String, Set<String>> subjectUserMap = new HashMap<>();
+        for (Battle battle : battles) {
+            String subjectId = battle.getSubjectId();
+            Subject subject = subjectRepository.findById(subjectId).orElse(null);
+            if (subject == null) continue;
+
+            String subjectName = subject.getSubjectName();
+            subjectUserMap.putIfAbsent(subjectName, new HashSet<>());
+
+            for (PlayerScore playerScore : battle.getPlayerScores()) {
+                subjectUserMap.get(subjectName).add(playerScore.getUserId());
+            }
+        }
+
+        Map<String, Integer> chartData = new LinkedHashMap<>();
+        for (Map.Entry<String, Set<String>> entry : subjectUserMap.entrySet()) {
+            chartData.put(entry.getKey(), entry.getValue().size());
+        }
+
+        return chartData;
+    }
+
+    @Override
+    public Map<String, Map<String, Integer>> getBattleScoreDistributionBySubject() {
+        // Unchanged from previous implementation
+        List<Battle> battles = battleRepository.findAll();
+        List<Subject> subjects = subjectRepository.findAll();
+
+        List<String> scoreRanges = List.of("0-50", "51-70", "71-90", "91-100");
+        Map<String, Map<String, Integer>> chartData = new LinkedHashMap<>();
+
+        for (Subject subject : subjects) {
+            String subjectName = subject.getSubjectName();
+            chartData.put(subjectName, new LinkedHashMap<>());
+            for (String range : scoreRanges) {
+                chartData.get(subjectName).put(range, 0);
+            }
+        }
+
+        for (Battle battle : battles) {
+            String subjectId = battle.getSubjectId();
+            Subject subject = subjectRepository.findById(subjectId).orElse(null);
+            if (subject == null) continue;
+
+            String subjectName = subject.getSubjectName();
+            for (PlayerScore playerScore : battle.getPlayerScores()) {
+                int score = playerScore.getScore();
+                String scoreRange = getBattleScoreRange(score);
+
+                Map<String, Integer> subjectData = chartData.get(subjectName);
+                int currentCount = subjectData.getOrDefault(scoreRange, 0);
+                subjectData.put(scoreRange, currentCount + 1);
+            }
+        }
+
+        chartData.entrySet().removeIf(entry ->
+                entry.getValue().values().stream().allMatch(count -> count == 0)
+        );
+
+        return chartData;
+    }
+
+    @Override
+    public Map<String, Double> getBattleAveragePointsByMonth(String date, String subjectName) {
+        YearMonth currentYearMonth = YearMonth.now();
+        LocalDate startDate = getLocalDate(date, currentYearMonth);
+        LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+
+        LocalDate currentDate = LocalDate.now();
+        if (currentDate.isBefore(endDate)) {
+            endDate = currentDate;
+        }
+
+        // Updated to use LocalDate for querying
+        List<Battle> battles = battleRepository.findAllByStartTimeBetween(startDate, endDate);
+
+        if (subjectName != null && !subjectName.isBlank()) {
+            battles = battles.stream()
+                    .filter(battle -> {
+                        Subject subject = subjectRepository.findById(battle.getSubjectId()).orElse(null);
+                        return subject != null && subjectName.equals(subject.getSubjectName());
+                    })
+                    .toList();
+        }
+
+        Map<String, Double> totalPoints = new LinkedHashMap<>();
+        Map<String, Integer> battleCount = new LinkedHashMap<>();
+        Map<String, Double> chartData = new LinkedHashMap<>();
+
+        for (LocalDate dateIter = startDate; !dateIter.isAfter(endDate); dateIter = dateIter.plusDays(1)) {
+            String dateStr = dateIter.format(DateTimeFormatter.ofPattern("dd-MM"));
+            totalPoints.put(dateStr, 0.0);
+            battleCount.put(dateStr, 0);
+            chartData.put(dateStr, 0.0);
+        }
+
+        for (Battle battle : battles) {
+            LocalDate startTime = battle.getStartTime();
+            if (startTime == null) continue;
+
+            String dateStr = startTime.format(DateTimeFormatter.ofPattern("dd-MM"));
+            for (PlayerScore playerScore : battle.getPlayerScores()) {
+                double currentPoints = totalPoints.getOrDefault(dateStr, 0.0);
+                int currentCount = battleCount.getOrDefault(dateStr, 0);
+                totalPoints.put(dateStr, currentPoints + playerScore.getScore());
+                battleCount.put(dateStr, currentCount + 1);
+            }
+        }
+
+        for (String dateStr : totalPoints.keySet()) {
+            double points = totalPoints.get(dateStr);
+            int count = battleCount.get(dateStr);
+            double average = count > 0 ? points / count : 0.0;
+            chartData.put(dateStr, Math.round(average * 100.0) / 100.0);
+        }
+
+        return chartData;
+    }
+
+    private String getBattleScoreRange(int score) {
+        if (score >= 0 && score <= 50) {
+            return "0-50";
+        } else if (score >= 51 && score <= 70) {
+            return "51-70";
+        } else if (score >= 71 && score <= 90) {
+            return "71-90";
+        } else if (score >= 91 && score <= 100) {
+            return "91-100";
+        } else {
+            return "0-50"; // Handle edge cases
+        }
     }
 }
