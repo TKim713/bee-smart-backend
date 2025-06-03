@@ -1,5 +1,6 @@
 package com.api.bee_smart_backend.repository;
 
+import com.api.bee_smart_backend.model.Subject;
 import com.api.bee_smart_backend.model.Topic;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,5 +17,7 @@ public interface TopicRepository extends MongoRepository<Topic, String> {
     List<Topic> findByGrade_GradeId(String gradeId);
 
     List<Topic> findByGrade_GradeIdAndSubject_SubjectId(String gradeId, String subjectId);
+
+    List<Topic> findBySubject(Subject subject);
 }
 

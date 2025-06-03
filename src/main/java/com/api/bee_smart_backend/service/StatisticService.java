@@ -7,15 +7,17 @@ import java.util.Map;
 public interface StatisticService {
     StatisticResponse getAggregatedStatisticByUserAndDateRange(String userId, String startDate, String endDate);
 
-    Map<String, Map<String, Integer>> getViewLessonByMonth(String date);
+    Map<String, Map<String, Integer>> getViewLessonByMonth(String date, String subject);
 
-    Map<String, Object> getListQuizRecord(String page, String size, String search);
+    Map<String, Object> getListQuizRecord(String page, String size, String search, String subject);
 
-    Map<String, Object> getListQuizRecordByUser(String userId, String page, String size, String search);
+    Map<String, Object> getListQuizRecordByUser(String userId, String page, String size, String search, String subject);
 
-    Map<String, Double> getQuizStatistics();
+    Map<String, Double> getQuizStatistics(String subject);
 
-    Map<String, Map<String, Integer>> getQuizByMonth(String date);
+    Map<String, Map<String, Integer>> getQuizByMonth(String date, String subject);
 
-    Map<String, Map<String, Double>> getQuizAverageByMonth(String date);
+    Map<String, Map<String, Double>> getQuizAverageByMonth(String date, String subject);
+
+    Map<String, Map<String, Integer>> getQuizScoreStatisticsBySubject();
 }
