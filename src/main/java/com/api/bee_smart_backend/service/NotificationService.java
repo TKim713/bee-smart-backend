@@ -12,4 +12,6 @@ public interface NotificationService {
     int markAllAsRead(String token);
 
     int deleteAllNotifications(String token);
+
+    int getUnreadCount(String token);
 }

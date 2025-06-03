@@ -134,4 +134,19 @@ public class BattleController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error sending next question: " + e.getMessage(), null));
         }
     }
+
+    @GetMapping("/get-online-list")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getOnlineList(
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size,
+            @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+        try {
+            Map<String, Object> result = battleService.getOnlineList(page, size, search);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Online list retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving online list: " + e.getMessage(), null));
+        }
+    }
 }

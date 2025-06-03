@@ -29,6 +29,7 @@ public class User {
 
     private boolean enabled = false;
     private boolean active = true;
+    private boolean isOnline = false;
 
     @CreatedDate
     private Instant createdAt;

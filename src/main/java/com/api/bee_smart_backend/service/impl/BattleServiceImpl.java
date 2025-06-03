@@ -6,7 +6,10 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
+import com.api.bee_smart_backend.helper.response.LessonResponse;
+import com.api.bee_smart_backend.helper.response.UserResponse;
 import com.api.bee_smart_backend.model.Battle;
+import com.api.bee_smart_backend.model.Lesson;
 import com.api.bee_smart_backend.model.Question;
 import com.api.bee_smart_backend.model.User;
 import com.api.bee_smart_backend.model.dto.PlayerScore;
@@ -124,7 +127,7 @@ public class BattleServiceImpl implements BattleService {
         List<PlayerScore> playerScores = request.getPlayerIds().stream().map(id -> {
             User user = userRepository.findById(id)
                     .orElseThrow(() -> new CustomException("User not found with ID: " + id, HttpStatus.NOT_FOUND));
-            return new PlayerScore(user.getUserId(), user.getUsername(), 0);
+            return new PlayerScore(user.getUserId(), user.getUsername(), 0, 0, 0);
         }).collect(Collectors.toList());
 
         Battle battle = new Battle();
@@ -387,7 +390,7 @@ public class BattleServiceImpl implements BattleService {
     private void applyScoringLogic(Battle battle, List<AnswerRequest> answers) {
         if (answers == null || answers.isEmpty()) return;
 
-        // ✅ If only one player answered, give them 10 points if correct
+        // If only one player answered, give them 10 points if correct
         if (answers.size() == 1) {
             AnswerRequest only = answers.get(0);
             boolean correct = questionService.checkAnswer(only.getQuestionId(), only.getAnswer());
@@ -397,12 +400,19 @@ public class BattleServiceImpl implements BattleService {
             battle.getPlayerScores().stream()
                     .filter(p -> p.getUserId().equals(only.getUserId()))
                     .findFirst()
-                    .ifPresent(p -> p.setScore(p.getScore() + points));
+                    .ifPresent(p -> {
+                        p.setScore(p.getScore() + points);
+                        if (correct) {
+                            p.setCorrectAnswers(p.getCorrectAnswers() + 1);
+                        } else {
+                            p.setIncorrectAnswers(p.getIncorrectAnswers() + 1);
+                        }
+                    });
 
             return;
         }
 
-        // ✅ If two players answered, score based on order + correctness
+        // If two players answered, score based on order + correctness
         answers.sort(Comparator.comparingInt(AnswerRequest::getTimeTaken)); // Faster first
 
         boolean firstCorrect = questionService.checkAnswer(
@@ -429,7 +439,44 @@ public class BattleServiceImpl implements BattleService {
             battle.getPlayerScores().stream()
                     .filter(p -> p.getUserId().equals(req.getUserId()))
                     .findFirst()
-                    .ifPresent(p -> p.setScore(p.getScore() + points));
+                    .ifPresent(p -> {
+                        p.setScore(p.getScore() + points);
+                        if (isCorrect) {
+                            p.setCorrectAnswers(p.getCorrectAnswers() + 1);
+                        } else {
+                            p.setIncorrectAnswers(p.getIncorrectAnswers() + 1);
+                        }
+                    });
         }
+    }
+
+    @Override
+    public Map<String, Object> getOnlineList(String page, String size, String search) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        Page<User> userPage;
+
+        if (search == null || search.isBlank()) {
+            // Get all online users who are not deleted
+            userPage = userRepository.findByIsOnlineTrueAndDeletedAtIsNull(pageable);
+        } else {
+            // Search online users by username or email
+            userPage = userRepository.findByIsOnlineTrueAndDeletedAtIsNullAndUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
+                    search, search, pageable);
+        }
+
+        List<UserResponse> responses = userPage.getContent().stream()
+                .map(user -> mapData.mapOne(user, UserResponse.class))
+                .toList();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("totalItems", userPage.getTotalElements());
+        response.put("totalPages", userPage.getTotalPages());
+        response.put("currentPage", userPage.getNumber());
+        response.put("users", responses);
+
+        return response;
     }
 }

@@ -69,4 +69,18 @@ public class NotificationController {
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), e.getMessage(), null));
         }
     }
+
+    @GetMapping("/unread-count")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getUnreadCount(
+            @RequestHeader("Authorization") String authHeader) {
+        try {
+            String token = authHeader.replace("Bearer ", "");
+            int count = notificationService.getUnreadCount(token);
+            return ResponseEntity.ok(new ResponseObject<>(HttpStatus.OK.value(), "Unread count retrieved",
+                    Map.of("count", count)));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), e.getMessage(), null));
+        }
+    }
 }
