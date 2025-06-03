@@ -43,6 +43,8 @@ public class StatisticServiceImpl implements StatisticService {
     private final SubjectRepository subjectRepository;
     @Autowired
     private final BattleRepository battleRepository;
+    @Autowired
+    private final GradeRepository gradeRepository;
 
     private final MapData mapData;
     DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
@@ -260,22 +262,20 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     public Map<String, Double> getQuizStatistics(String subjectName) {
+        List<Grade> grades = gradeRepository.findAll();
         List<QuizRecord> quizRecords = quizRecordRepository.findAll();
 
-        // Filter by subject if provided
         if (subjectName != null && !subjectName.isBlank()) {
             quizRecords = quizRecords.stream()
                     .filter(record -> {
                         Quiz quiz = record.getQuiz();
                         if (quiz == null) return false;
 
-                        // Check if quiz has a lesson with the subject
                         if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
                             Subject subject = quiz.getLesson().getTopic().getSubject();
                             return subject != null && subjectName.equals(subject.getSubjectName());
                         }
 
-                        // Check if quiz has a topic with the subject
                         if (quiz.getTopic() != null) {
                             Subject subject = quiz.getTopic().getSubject();
                             return subject != null && subjectName.equals(subject.getSubjectName());
@@ -287,6 +287,12 @@ public class StatisticServiceImpl implements StatisticService {
         }
 
         Map<String, Integer> gradeCount = new HashMap<>();
+        // Initialize all grades with 0 count
+        for (Grade grade : grades) {
+            gradeCount.put(grade.getGradeName(), 0);
+        }
+
+        // Count quiz records per grade
         for (QuizRecord record : quizRecords) {
             String gradeName = record.getGradeName();
             if (gradeName == null) continue;
@@ -297,11 +303,10 @@ public class StatisticServiceImpl implements StatisticService {
         int totalQuizzes = gradeCount.values().stream().mapToInt(Integer::intValue).sum();
 
         Map<String, Double> chartData = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> entry : gradeCount.entrySet()) {
-            String gradeName = entry.getKey();
-            int count = entry.getValue();
+        for (Grade grade : grades) {
+            String gradeName = grade.getGradeName();
+            int count = gradeCount.getOrDefault(gradeName, 0);
             double percentage = totalQuizzes > 0 ? (double) count / totalQuizzes * 100 : 0;
-
             chartData.put(gradeName, Math.round(percentage * 100.0) / 100.0);
         }
 
@@ -481,7 +486,6 @@ public class StatisticServiceImpl implements StatisticService {
         List<QuizRecord> quizRecords = quizRecordRepository.findAll();
         List<Subject> subjects = subjectRepository.findAll();
 
-        // Define score groups
         List<String> scoreGroups = List.of(
                 "0.0 - 3.4",
                 "3.5 - 4.9",
@@ -496,7 +500,6 @@ public class StatisticServiceImpl implements StatisticService {
         for (Subject subject : subjects) {
             String subjectName = subject.getSubjectName();
             chartData.put(subjectName, new LinkedHashMap<>());
-
             for (String scoreGroup : scoreGroups) {
                 chartData.get(subjectName).put(scoreGroup, 0);
             }
@@ -508,8 +511,6 @@ public class StatisticServiceImpl implements StatisticService {
             if (quiz == null) continue;
 
             String subjectName = null;
-
-            // Get subject from quiz's lesson or topic
             if (quiz.getLesson() != null && quiz.getLesson().getTopic() != null) {
                 Subject subject = quiz.getLesson().getTopic().getSubject();
                 if (subject != null) {
@@ -524,11 +525,9 @@ public class StatisticServiceImpl implements StatisticService {
 
             if (subjectName == null) continue;
 
-            // Determine score group
             double points = record.getPoints();
             String scoreGroup = getScoreGroup(points);
 
-            // Update count for the subject and score group
             Map<String, Integer> subjectData = chartData.get(subjectName);
             if (subjectData != null) {
                 int currentCount = subjectData.getOrDefault(scoreGroup, 0);
@@ -536,10 +535,16 @@ public class StatisticServiceImpl implements StatisticService {
             }
         }
 
-        // Remove subjects with no quiz records
-        chartData.entrySet().removeIf(entry ->
-                entry.getValue().values().stream().allMatch(count -> count == 0)
-        );
+        // Convert counts to percentages
+        for (String subjectName : chartData.keySet()) {
+            Map<String, Integer> scoreData = chartData.get(subjectName);
+            int totalScores = scoreData.values().stream().mapToInt(Integer::intValue).sum();
+            for (String scoreGroup : scoreGroups) {
+                int count = scoreData.get(scoreGroup);
+                double percentage = totalScores > 0 ? (double) count / totalScores * 100 : 0;
+                scoreData.put(scoreGroup, (int) Math.round(percentage));
+            }
+        }
 
         return chartData;
     }
@@ -556,8 +561,7 @@ public class StatisticServiceImpl implements StatisticService {
         } else if (score >= 8.0 && score <= 10.0) {
             return "8.0 - 10.0";
         } else {
-            // Handle edge case for scores outside expected range
-            return "0.0 - 3.4";
+            return "0.0 - 3.4"; // Handle edge cases
         }
     }
 
@@ -603,26 +607,38 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     public Map<String, Integer> getUsersJoinedBattleBySubject() {
-        // Unchanged from previous implementation
+        List<Subject> subjects = subjectRepository.findAll();
         List<Battle> battles = battleRepository.findAll();
 
         Map<String, Set<String>> subjectUserMap = new HashMap<>();
+        // Initialize all subjects with empty user sets
+        for (Subject subject : subjects) {
+            subjectUserMap.put(subject.getSubjectName(), new HashSet<>());
+        }
+
+        // Aggregate users by subject
         for (Battle battle : battles) {
             String subjectId = battle.getSubjectId();
             Subject subject = subjectRepository.findById(subjectId).orElse(null);
             if (subject == null) continue;
 
             String subjectName = subject.getSubjectName();
-            subjectUserMap.putIfAbsent(subjectName, new HashSet<>());
-
             for (PlayerScore playerScore : battle.getPlayerScores()) {
                 subjectUserMap.get(subjectName).add(playerScore.getUserId());
             }
         }
 
         Map<String, Integer> chartData = new LinkedHashMap<>();
+        int totalUsers = subjectUserMap.values().stream()
+                .flatMap(Set::stream)
+                .distinct()
+                .mapToInt(v -> 1)
+                .sum();
+
         for (Map.Entry<String, Set<String>> entry : subjectUserMap.entrySet()) {
-            chartData.put(entry.getKey(), entry.getValue().size());
+            int userCount = entry.getValue().size();
+            double percentage = totalUsers > 0 ? (double) userCount / totalUsers * 100 : 0;
+            chartData.put(entry.getKey(), (int) Math.round(percentage));
         }
 
         return chartData;
@@ -630,13 +646,13 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     public Map<String, Map<String, Integer>> getBattleScoreDistributionBySubject() {
-        // Unchanged from previous implementation
-        List<Battle> battles = battleRepository.findAll();
         List<Subject> subjects = subjectRepository.findAll();
+        List<Battle> battles = battleRepository.findAll();
 
         List<String> scoreRanges = List.of("0-50", "51-70", "71-90", "91-100");
         Map<String, Map<String, Integer>> chartData = new LinkedHashMap<>();
 
+        // Initialize chart data for all subjects
         for (Subject subject : subjects) {
             String subjectName = subject.getSubjectName();
             chartData.put(subjectName, new LinkedHashMap<>());
@@ -645,6 +661,7 @@ public class StatisticServiceImpl implements StatisticService {
             }
         }
 
+        // Process battle records
         for (Battle battle : battles) {
             String subjectId = battle.getSubjectId();
             Subject subject = subjectRepository.findById(subjectId).orElse(null);
@@ -661,15 +678,22 @@ public class StatisticServiceImpl implements StatisticService {
             }
         }
 
-        chartData.entrySet().removeIf(entry ->
-                entry.getValue().values().stream().allMatch(count -> count == 0)
-        );
+        // Convert counts to percentages
+        for (String subjectName : chartData.keySet()) {
+            Map<String, Integer> scoreData = chartData.get(subjectName);
+            int totalScores = scoreData.values().stream().mapToInt(Integer::intValue).sum();
+            for (String range : scoreRanges) {
+                int count = scoreData.get(range);
+                double percentage = totalScores > 0 ? (double) count / totalScores * 100 : 0;
+                scoreData.put(range, (int) Math.round(percentage));
+            }
+        }
 
         return chartData;
     }
 
     @Override
-    public Map<String, Double> getBattleAveragePointsByMonth(String date, String subjectName) {
+    public Map<String, Double> getBattleAveragePointsByMonth(String date, String subjectName, String gradeName) {
         YearMonth currentYearMonth = YearMonth.now();
         LocalDate startDate = getLocalDate(date, currentYearMonth);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
@@ -679,7 +703,6 @@ public class StatisticServiceImpl implements StatisticService {
             endDate = currentDate;
         }
 
-        // Updated to use LocalDate for querying
         List<Battle> battles = battleRepository.findAllByStartTimeBetween(startDate, endDate);
 
         if (subjectName != null && !subjectName.isBlank()) {
@@ -687,6 +710,15 @@ public class StatisticServiceImpl implements StatisticService {
                     .filter(battle -> {
                         Subject subject = subjectRepository.findById(battle.getSubjectId()).orElse(null);
                         return subject != null && subjectName.equals(subject.getSubjectName());
+                    })
+                    .toList();
+        }
+
+        if (gradeName != null && !gradeName.isBlank()) {
+            battles = battles.stream()
+                    .filter(battle -> {
+                        Grade grade = gradeRepository.findById(battle.getGradeId()).orElse(null);
+                        return grade != null && gradeName.equals(grade.getGradeName());
                     })
                     .toList();
         }
