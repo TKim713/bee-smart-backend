@@ -172,12 +172,11 @@ public class StatisticController {
     }
 
     @GetMapping("/admin/battle-average-by-month")
-    public ResponseEntity<ResponseObject<Map<String, Double>>> getBattleAverageByMonth(
+    public ResponseEntity<ResponseObject<Map<String, Map<String, Double>>>> getBattleAverageByMonth(
             @RequestParam(required = false) String date,
-            @RequestParam(name = "subject", required = false) String subject,
-            @RequestParam(name = "grade", required = false) String grade) {
+            @RequestParam(name = "subject", required = false) String subject) {
         try {
-            Map<String, Double> chartData = statisticService.getBattleAveragePointsByMonth(date, subject, grade);
+            Map<String, Map<String, Double>> chartData = statisticService.getBattleAveragePointsByMonth(date, subject);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu điểm trung bình battle theo tháng thành công", chartData));
         } catch (Exception e) {

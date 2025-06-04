@@ -693,7 +693,7 @@ public class StatisticServiceImpl implements StatisticService {
     }
 
     @Override
-    public Map<String, Double> getBattleAveragePointsByMonth(String date, String subjectName, String gradeName) {
+    public Map<String, Map<String, Double>> getBattleAveragePointsByMonth(String date, String subjectName) {
         YearMonth currentYearMonth = YearMonth.now();
         LocalDate startDate = getLocalDate(date, currentYearMonth);
         LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
@@ -705,6 +705,7 @@ public class StatisticServiceImpl implements StatisticService {
 
         List<Battle> battles = battleRepository.findAllByStartTimeBetween(startDate, endDate);
 
+        // Filter by subject if provided
         if (subjectName != null && !subjectName.isBlank()) {
             battles = battles.stream()
                     .filter(battle -> {
@@ -714,47 +715,71 @@ public class StatisticServiceImpl implements StatisticService {
                     .toList();
         }
 
-        if (gradeName != null && !gradeName.isBlank()) {
-            battles = battles.stream()
-                    .filter(battle -> {
-                        Grade grade = gradeRepository.findById(battle.getGradeId()).orElse(null);
-                        return grade != null && gradeName.equals(grade.getGradeName());
-                    })
-                    .toList();
-        }
+        Map<String, Map<String, Double>> totalPoints = new LinkedHashMap<>();
+        Map<String, Map<String, Integer>> battleCount = new LinkedHashMap<>();
+        Map<String, Map<String, Double>> averageScores = new LinkedHashMap<>();
 
-        Map<String, Double> totalPoints = new LinkedHashMap<>();
-        Map<String, Integer> battleCount = new LinkedHashMap<>();
-        Map<String, Double> chartData = new LinkedHashMap<>();
+        List<String> grades = List.of("Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5");
 
+        // Initialize data structures for each date and grade
         for (LocalDate dateIter = startDate; !dateIter.isAfter(endDate); dateIter = dateIter.plusDays(1)) {
             String dateStr = dateIter.format(DateTimeFormatter.ofPattern("dd-MM"));
-            totalPoints.put(dateStr, 0.0);
-            battleCount.put(dateStr, 0);
-            chartData.put(dateStr, 0.0);
+            totalPoints.putIfAbsent(dateStr, new LinkedHashMap<>());
+            battleCount.putIfAbsent(dateStr, new LinkedHashMap<>());
+            averageScores.putIfAbsent(dateStr, new LinkedHashMap<>());
+
+            for (String grade : grades) {
+                totalPoints.get(dateStr).put(grade, 0.0);
+                battleCount.get(dateStr).put(grade, 0);
+                averageScores.get(dateStr).put(grade, 0.0);
+            }
         }
 
+        // Process battles and aggregate by date and grade
         for (Battle battle : battles) {
             LocalDate startTime = battle.getStartTime();
             if (startTime == null) continue;
 
             String dateStr = startTime.format(DateTimeFormatter.ofPattern("dd-MM"));
+
+            // Get the grade for this battle
+            Grade grade = gradeRepository.findById(battle.getGradeId()).orElse(null);
+            if (grade == null) continue;
+
+            String gradeName = grade.getGradeName();
+
+            totalPoints.putIfAbsent(dateStr, new LinkedHashMap<>());
+            battleCount.putIfAbsent(dateStr, new LinkedHashMap<>());
+
             for (PlayerScore playerScore : battle.getPlayerScores()) {
-                double currentPoints = totalPoints.getOrDefault(dateStr, 0.0);
-                int currentCount = battleCount.getOrDefault(dateStr, 0);
-                totalPoints.put(dateStr, currentPoints + playerScore.getScore());
-                battleCount.put(dateStr, currentCount + 1);
+                double currentTotalPoints = totalPoints.get(dateStr).getOrDefault(gradeName, 0.0);
+                int currentBattleCount = battleCount.get(dateStr).getOrDefault(gradeName, 0);
+
+                totalPoints.get(dateStr).put(gradeName, currentTotalPoints + playerScore.getScore());
+                battleCount.get(dateStr).put(gradeName, currentBattleCount + 1);
             }
         }
 
+        // Calculate averages for each date and grade
         for (String dateStr : totalPoints.keySet()) {
-            double points = totalPoints.get(dateStr);
-            int count = battleCount.get(dateStr);
-            double average = count > 0 ? points / count : 0.0;
-            chartData.put(dateStr, Math.round(average * 100.0) / 100.0);
+            Map<String, Double> dailyPoints = totalPoints.get(dateStr);
+            Map<String, Integer> dailyBattleCount = battleCount.get(dateStr);
+            Map<String, Double> dailyAverageScores = averageScores.get(dateStr);
+
+            for (String grade : grades) {
+                double totalPointsForGrade = dailyPoints.getOrDefault(grade, 0.0);
+                int totalBattlesForGrade = dailyBattleCount.getOrDefault(grade, 0);
+
+                if (totalBattlesForGrade > 0) {
+                    double averageScore = totalPointsForGrade / totalBattlesForGrade;
+                    dailyAverageScores.put(grade, Math.round(averageScore * 100.0) / 100.0);
+                } else {
+                    dailyAverageScores.put(grade, 0.0);
+                }
+            }
         }
 
-        return chartData;
+        return averageScores;
     }
 
     private String getBattleScoreRange(int score) {

@@ -25,5 +25,5 @@ public interface StatisticService {
 
     Map<String, Map<String, Integer>> getBattleScoreDistributionBySubject();
 
-    Map<String, Double> getBattleAveragePointsByMonth(String date, String subjectName, String gradeName);
+    Map<String, Map<String, Double>> getBattleAveragePointsByMonth(String date, String subjectName);
 }
