@@ -5,14 +5,14 @@ import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
+import com.api.bee_smart_backend.helper.response.BattleHistoryResponse;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
+import com.api.bee_smart_backend.helper.response.BattleUserResponse;
 import com.api.bee_smart_backend.helper.response.UserResponse;
-import com.api.bee_smart_backend.model.Battle;
+import com.api.bee_smart_backend.model.*;
+import com.api.bee_smart_backend.model.dto.BattleUser;
 import com.api.bee_smart_backend.model.dto.PlayerScore;
-import com.api.bee_smart_backend.model.Question;
-import com.api.bee_smart_backend.model.User;
-import com.api.bee_smart_backend.repository.BattleRepository;
-import com.api.bee_smart_backend.repository.UserRepository;
+import com.api.bee_smart_backend.repository.*;
 import com.api.bee_smart_backend.service.BattleService;
 import com.api.bee_smart_backend.service.QuestionService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,8 +28,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 import java.util.concurrent.*;
@@ -44,6 +44,15 @@ public class BattleServiceImpl implements BattleService {
     private final BattleRepository battleRepository;
     @Autowired
     private final UserRepository userRepository;
+    @Autowired
+    private final TokenRepository tokenRepository;
+    @Autowired
+    private final GradeRepository gradeRepository;
+    @Autowired
+    private final SubjectRepository subjectRepository;
+    @Autowired
+    private final BattleUserRepository battleUserRepository;
+
     private final QuestionService questionService;
     private final BattleWebSocketHandler webSocketHandler;
     private final MapData mapData;
@@ -124,23 +133,59 @@ public class BattleServiceImpl implements BattleService {
             throw new CustomException("Battle must have exactly 2 players!", HttpStatus.BAD_REQUEST);
         }
 
+        // Create PlayerScore list for Battle
         List<PlayerScore> playerScores = request.getPlayerIds().stream().map(id -> {
             User user = userRepository.findById(id)
                     .orElseThrow(() -> new CustomException("User not found with ID: " + id, HttpStatus.NOT_FOUND));
             return new PlayerScore(user.getUserId(), user.getUsername(), 0, 0, 0);
         }).collect(Collectors.toList());
 
-        Battle battle = new Battle();
-        battle.setTopic(request.getTopic());
-        battle.setGradeId(request.getGradeId());
-        battle.setSubjectId(request.getSubjectId());
-        battle.setStatus("ONGOING");
-        battle.setPlayerScores(playerScores);
-        battle.setStartTime(LocalDate.now(ZoneId.systemDefault())); // Updated to LocalDate
-        battle.setAnsweredQuestions(new HashSet<>());
+        // Create Battle
+        Battle battle = Battle.builder()
+                .topic(request.getTopic())
+                .gradeId(request.getGradeId())
+                .subjectId(request.getSubjectId())
+                .status("ONGOING")
+                .playerScores(playerScores)
+                .startTime(LocalDate.now(ZoneId.systemDefault()))
+                .answeredQuestions(new HashSet<>())
+                .createdAt(Instant.now())
+                .build();
 
         Battle savedBattle = battleRepository.save(battle);
+
+        // Initialize or ensure BattleUser records for each player
+        for (String userId : request.getPlayerIds()) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new CustomException("User not found with ID: " + userId, HttpStatus.NOT_FOUND));
+            Optional<BattleUser> existingBattleUser = battleUserRepository.findByUserAndDeletedAtIsNull(user);
+            if (existingBattleUser.isEmpty()) {
+                BattleUser battleUser = BattleUser.builder()
+                        .user(user)
+                        .totalBattleWon(0)
+                        .totalBattleLost(0)
+                        .createdAt(Instant.now())
+                        .build();
+                battleUserRepository.save(battleUser);
+            }
+        }
+
         battleQuestionNumbers.put(savedBattle.getId(), 0);
+
+        // Send WebSocket message to both players that the battle has started
+        try {
+            webSocketHandler.broadcastUpdate(
+                    savedBattle.getId(),
+                    new ObjectMapper().writeValueAsString(
+                            Map.of(
+                                    "type", "START",
+                                    "battleId", savedBattle.getId(),
+                                    "playerScores", savedBattle.getPlayerScores()
+                            ))
+            );
+        } catch (Exception e) {
+            log.error("Error sending WebSocket battle start message", e);
+        }
 
         return mapData.mapOne(savedBattle, BattleResponse.class);
     }
@@ -239,7 +284,7 @@ public class BattleServiceImpl implements BattleService {
             throw new CustomException("You have already answered this question!", HttpStatus.CONFLICT);
         }
 
-        // If the answer is multi-select, convert to comma-separated string for compatibility
+        // If the answer is multi-select, convert to comma-separated string
         if (request.getAnswers() != null && !request.getAnswers().isEmpty()) {
             String joinedAnswers = String.join(",", request.getAnswers());
             request.setAnswer(joinedAnswers);
@@ -247,29 +292,28 @@ public class BattleServiceImpl implements BattleService {
 
         answers.add(request);
 
-        // If only 1 player answered so far, start timeout for the other
+        // If only 1 player answered, start timeout for the other
         if (answers.size() == 1 && battle.getPlayerScores().size() > 1) {
             ScheduledFuture<?> timeoutTask = scheduler.schedule(() -> {
                 List<String> answeredUsers = answers.stream()
                         .map(AnswerRequest::getUserId)
                         .toList();
 
-                Optional<String> otherUser = battle.getPlayerScores().stream()
+                Optional<String> otherUserId = battle.getPlayerScores().stream()
                         .map(PlayerScore::getUserId)
                         .filter(userId -> !answeredUsers.contains(userId))
                         .findFirst();
 
-                otherUser.ifPresent(userId -> {
+                otherUserId.ifPresent(userId -> {
                     AnswerRequest timeoutAnswer = new AnswerRequest();
                     timeoutAnswer.setUserId(userId);
                     timeoutAnswer.setQuestionId(request.getQuestionId());
                     timeoutAnswer.setAnswer(null);
-                    timeoutAnswer.setTimeTaken(30); // simulate full time
+                    timeoutAnswer.setTimeTaken(30);
 
-                    // Recursive call to self with timeout answer
                     submitAnswer(battleId, timeoutAnswer);
                 });
-            }, 31, TimeUnit.SECONDS); // allow buffer
+            }, 31, TimeUnit.SECONDS);
 
             timeoutTasks.put(key, timeoutTask);
         }
@@ -285,13 +329,15 @@ public class BattleServiceImpl implements BattleService {
             applyScoringLogic(battle, answers);
             questionAnswers.remove(key);
             battle.getAnsweredQuestions().add(questionId);
-
             battleRepository.save(battle);
+
             BattleResponse updatedBattle = mapData.mapOne(battle, BattleResponse.class);
 
+            // Include PlayerScore in WebSocket message
             try {
                 Map<String, Object> updateMsg = new ObjectMapper().convertValue(updatedBattle, Map.class);
                 updateMsg.put("type", "SCORE_UPDATE");
+                updateMsg.put("playerScores", battle.getPlayerScores());
                 webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(updateMsg));
             } catch (Exception e) {
                 log.error("Error sending battle update via WebSocket", e);
@@ -306,10 +352,9 @@ public class BattleServiceImpl implements BattleService {
                 }
             });
 
-            return mapData.mapOne(battle, BattleResponse.class);
+            return updatedBattle;
         }
 
-        // Save interim state
         battleRepository.save(battle);
         return mapData.mapOne(battle, BattleResponse.class);
     }
@@ -327,20 +372,49 @@ public class BattleServiceImpl implements BattleService {
                 .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
 
         battle.setStatus("ENDED");
-        battle.setEndTime(LocalDate.now(ZoneId.systemDefault())); // Updated to LocalDate
+        battle.setEndTime(LocalDate.now(ZoneId.systemDefault()));
+        battle.setUpdatedAt(Instant.now());
         battleQuestionNumbers.remove(battleId);
 
-        Optional<PlayerScore> winner = battle.getPlayerScores().stream()
+        // Determine winner based on PlayerScore
+        Optional<PlayerScore> winnerScore = battle.getPlayerScores().stream()
                 .max(Comparator.comparingInt(PlayerScore::getScore));
-        battle.setWinner(winner.map(PlayerScore::getUserId).orElse(null));
+        String winnerId = winnerScore.map(PlayerScore::getUserId).orElse(null);
 
+        // Update BattleUser records
+        for (PlayerScore playerScore : battle.getPlayerScores()) {
+            User user = userRepository.findById(playerScore.getUserId())
+                    .orElseThrow(() -> new CustomException("User not found with ID: " + playerScore.getUserId(), HttpStatus.NOT_FOUND));
+            Optional<BattleUser> battleUserOpt = battleUserRepository.findByUserAndDeletedAtIsNull(user);
+            BattleUser battleUser = battleUserOpt.orElseGet(() -> {
+                BattleUser newBattleUser = BattleUser.builder()
+                        .user(user)
+                        .totalBattleWon(0)
+                        .totalBattleLost(0)
+                        .createdAt(Instant.now())
+                        .build();
+                return battleUserRepository.save(newBattleUser);
+            });
+
+            if (playerScore.getUserId().equals(winnerId)) {
+                battleUser.setTotalBattleWon(battleUser.getTotalBattleWon() + 1);
+            } else {
+                battleUser.setTotalBattleLost(battleUser.getTotalBattleLost() + 1);
+            }
+            battleUserRepository.save(battleUser);
+        }
+
+        // Update Battle
+        battle.setWinner(winnerId);
         battleRepository.save(battle);
+
         BattleResponse finalResponse = mapData.mapOne(battle, BattleResponse.class);
 
-        // Send final results via WebSocket
+        // Include PlayerScore in WebSocket message
         try {
             Map<String, Object> endMsg = new HashMap<>(new ObjectMapper().convertValue(finalResponse, Map.class));
             endMsg.put("type", "END");
+            endMsg.put("playerScores", battle.getPlayerScores());
             webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(endMsg));
         } catch (Exception e) {
             log.error("Error sending final results via WebSocket", e);
@@ -393,13 +467,13 @@ public class BattleServiceImpl implements BattleService {
     private void applyScoringLogic(Battle battle, List<AnswerRequest> answers) {
         if (answers == null || answers.isEmpty()) return;
 
-        // If only one player answered, give them 10 points if correct
+        // If only one player answered
         if (answers.size() == 1) {
             AnswerRequest only = answers.get(0);
             boolean correct = questionService.checkAnswer(only.getQuestionId(), only.getAnswer());
-
             int points = correct ? 10 : 0;
 
+            // Update PlayerScore
             battle.getPlayerScores().stream()
                     .filter(p -> p.getUserId().equals(only.getUserId()))
                     .findFirst()
@@ -415,12 +489,9 @@ public class BattleServiceImpl implements BattleService {
             return;
         }
 
-        // If two players answered, score based on order + correctness
+        // If two players answered
         answers.sort(Comparator.comparingInt(AnswerRequest::getTimeTaken)); // Faster first
-
-        boolean firstCorrect = questionService.checkAnswer(
-                answers.get(0).getQuestionId(), answers.get(0).getAnswer()
-        );
+        boolean firstCorrect = questionService.checkAnswer(answers.get(0).getQuestionId(), answers.get(0).getAnswer());
 
         for (int i = 0; i < answers.size(); i++) {
             AnswerRequest req = answers.get(i);
@@ -439,6 +510,7 @@ public class BattleServiceImpl implements BattleService {
                 points = 0;
             }
 
+            // Update PlayerScore
             battle.getPlayerScores().stream()
                     .filter(p -> p.getUserId().equals(req.getUserId()))
                     .findFirst()
@@ -481,5 +553,81 @@ public class BattleServiceImpl implements BattleService {
         response.put("users", responses);
 
         return response;
+    }
+
+    @Override
+    public BattleUserResponse getBattleUserDetail(String jwtToken) {
+        // Assuming Token model and TokenRepository exist
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
+        User user = userRepository.findById(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        BattleUser battleUser = battleUserRepository.findByUserAndDeletedAtIsNull(user)
+                .orElseGet(() -> {
+                    BattleUser newBattleUser = BattleUser.builder()
+                            .user(user)
+                            .totalBattleWon(0)
+                            .totalBattleLost(0)
+                            .build();
+                    return battleUserRepository.save(newBattleUser);
+                });
+
+        return BattleUserResponse.builder()
+                .battleUserId(battleUser.getBattleUserId())
+                .userId(battleUser.getUser().getUserId())
+                .username(battleUser.getUser().getUsername())
+                .totalBattleWon(battleUser.getTotalBattleWon())
+                .totalBattleLost(battleUser.getTotalBattleLost())
+                .build();
+    }
+
+    @Override
+    public List<BattleHistoryResponse> getUserBattleHistory(String jwtToken, Pageable pageable) {
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
+        User user = userRepository.findById(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        // Find battles where the user participated
+        Page<Battle> battles = battleRepository.findByPlayerScoresUserIdAndStatus(user.getUserId(), "ENDED", pageable);
+
+        return battles.getContent().stream().map(battle -> {
+            // Get user's PlayerScore
+            PlayerScore userScore = battle.getPlayerScores().stream()
+                    .filter(ps -> ps.getUserId().equals(user.getUserId()))
+                    .findFirst()
+                    .orElseThrow(() -> new CustomException("PlayerScore not found for user", HttpStatus.NOT_FOUND));
+
+            // Get opponent's PlayerScore
+            PlayerScore opponentScore = battle.getPlayerScores().stream()
+                    .filter(ps -> !ps.getUserId().equals(user.getUserId()))
+                    .findFirst()
+                    .orElseThrow(() -> new CustomException("Opponent PlayerScore not found", HttpStatus.NOT_FOUND));
+
+            // Fetch Grade and Subject
+            Grade grade = gradeRepository.findById(battle.getGradeId())
+                    .orElseThrow(() -> new CustomException("Grade not found with ID: " + battle.getGradeId(), HttpStatus.NOT_FOUND));
+            Subject subject = subjectRepository.findById(battle.getSubjectId())
+                    .orElseThrow(() -> new CustomException("Subject not found with ID: " + battle.getSubjectId(), HttpStatus.NOT_FOUND));
+
+            // Determine if user won
+            boolean won = battle.getWinner() != null && battle.getWinner().equals(user.getUserId());
+
+            return BattleHistoryResponse.builder()
+                    .battleId(battle.getId())
+                    .opponentUsername(opponentScore.getUsername())
+                    .gradeName(grade.getGradeName())
+                    .subjectName(subject.getSubjectName())
+                    .topic(battle.getTopic())
+                    .won(won)
+                    .score(userScore.getScore())
+                    .correctAnswers(userScore.getCorrectAnswers())
+                    .incorrectAnswers(userScore.getIncorrectAnswers())
+                    .completedAt(battle.getUpdatedAt())
+                    .build();
+        }).collect(Collectors.toList());
     }
 }

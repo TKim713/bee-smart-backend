@@ -3,17 +3,23 @@ package com.api.bee_smart_backend.controller;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
+import com.api.bee_smart_backend.helper.response.BattleHistoryResponse;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
+import com.api.bee_smart_backend.helper.response.BattleUserResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
 import com.api.bee_smart_backend.service.BattleService;
 import com.api.bee_smart_backend.service.GradeService;
 import com.api.bee_smart_backend.service.SubjectService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -147,6 +153,45 @@ public class BattleController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving online list: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/user/battle-user-detail")
+    public ResponseEntity<ResponseObject<BattleUserResponse>> getBattleUserDetail(@RequestHeader("Authorization") String token) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            BattleUserResponse response = battleService.getBattleUserDetail(jwtToken);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Thông tin thống kê trận đấu của người dùng", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy thống kê trận đấu", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/user/battle-history")
+    public ResponseEntity<ResponseObject<List<BattleHistoryResponse>>> getUserBattleHistory(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+            int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+            Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "endTime"));
+
+            List<BattleHistoryResponse> response = battleService.getUserBattleHistory(jwtToken, pageable);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lịch sử trận đấu của người dùng", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy lịch sử trận đấu", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 }

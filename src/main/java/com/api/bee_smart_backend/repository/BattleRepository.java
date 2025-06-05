@@ -16,4 +16,6 @@ public interface BattleRepository extends MongoRepository<Battle, String> {
 
     @Query("{ 'startTime': { $gte: ?0, $lte: ?1 } }")
     List<Battle> findAllByStartTimeBetween(LocalDate startDate, LocalDate endDate);
+
+    Page<Battle> findByPlayerScoresUserIdAndStatus(String userId, String ended, Pageable pageable);
 }

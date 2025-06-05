@@ -2,8 +2,11 @@ package com.api.bee_smart_backend.service;
 
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
+import com.api.bee_smart_backend.helper.response.BattleHistoryResponse;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
+import com.api.bee_smart_backend.helper.response.BattleUserResponse;
 import com.api.bee_smart_backend.model.Battle;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.Map;
@@ -31,4 +34,8 @@ public interface BattleService {
     String checkMatchmakingStatus(String gradeId, String subjectId);
 
     Map<String, Object> getOnlineList(String page, String size, String search);
+
+    BattleUserResponse getBattleUserDetail(String jwtToken);
+
+    List<BattleHistoryResponse> getUserBattleHistory(String jwtToken, Pageable pageable);
 }
