@@ -33,9 +33,7 @@ public interface BattleService {
 
     String checkMatchmakingStatus(String gradeId, String subjectId);
 
-    Map<String, Object> getOnlineList(String page, String size, String search);
+    Map<String, Object> getOnlineList(String jwtToken, String page, String size, String search);
 
-    BattleUserResponse getBattleUserDetail(String jwtToken);
-
-    List<BattleHistoryResponse> getUserBattleHistory(String jwtToken, Pageable pageable);
+    BattleUserResponse getBattleUserDetail(String jwtToken, Pageable pageable);
 }

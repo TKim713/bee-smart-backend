@@ -5,10 +5,7 @@ import com.api.bee_smart_backend.config.MapData;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.AnswerRequest;
 import com.api.bee_smart_backend.helper.request.BattleRequest;
-import com.api.bee_smart_backend.helper.response.BattleHistoryResponse;
-import com.api.bee_smart_backend.helper.response.BattleResponse;
-import com.api.bee_smart_backend.helper.response.BattleUserResponse;
-import com.api.bee_smart_backend.helper.response.UserResponse;
+import com.api.bee_smart_backend.helper.response.*;
 import com.api.bee_smart_backend.model.*;
 import com.api.bee_smart_backend.model.dto.BattleUser;
 import com.api.bee_smart_backend.model.dto.PlayerScore;
@@ -526,44 +523,60 @@ public class BattleServiceImpl implements BattleService {
     }
 
     @Override
-    public Map<String, Object> getOnlineList(String page, String size, String search) {
-        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
-        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+    public Map<String, Object> getOnlineList(String jwtToken, String page, String size, String search) {
+        try {
+            // Extract userId from JWT token
+            Token token = tokenRepository.findByAccessToken(jwtToken)
+                    .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+            String currentUserId = token.getUser().getUserId();
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
-        Page<User> userPage;
+            int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+            int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+            Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "updatedAt"));
 
-        if (search == null || search.isBlank()) {
-            // Get all online users who are not deleted
-            userPage = userRepository.findByIsOnlineTrueAndDeletedAtIsNull(pageable);
-        } else {
-            // Search online users by username or email
-            userPage = userRepository.findByIsOnlineTrueAndDeletedAtIsNullAndUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
-                    search, search, pageable);
+            Page<User> users;
+            if (search != null && !search.isBlank()) {
+                users = userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCaseAndIsOnlineTrueAndDeletedAtIsNullAndRoleNotAndUserIdNot(
+                        search, search, pageable, "SYSTEM_ADMIN", currentUserId);
+            } else {
+                users = userRepository.findByIsOnlineTrueAndDeletedAtIsNullAndRoleNotAndUserIdNot(pageable, "SYSTEM_ADMIN", currentUserId);
+            }
+
+            List<UserWithBattleStatsResponse> userWithStatsList = users.getContent().stream().map(user -> {
+                // Fetch BattleUser for battle stats
+                Optional<BattleUser> battleUserOpt = battleUserRepository.findByUserAndDeletedAtIsNull(user);
+                int totalBattleWon = battleUserOpt.map(BattleUser::getTotalBattleWon).orElse(0);
+                int totalBattleLost = battleUserOpt.map(BattleUser::getTotalBattleLost).orElse(0);
+
+                // Create UserWithBattleStatsResponse
+                return UserWithBattleStatsResponse.builder()
+                        .userId(user.getUserId())
+                        .username(user.getUsername())
+                        .totalBattleWon(totalBattleWon)
+                        .totalBattleLost(totalBattleLost)
+                        .build();
+            }).collect(Collectors.toList());
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("totalPages", users.getTotalPages());
+            response.put("totalElements", users.getTotalElements());
+            response.put("users", userWithStatsList);
+            return response;
+        } catch (Exception e) {
+            log.error("Error retrieving online list: {}", e.getMessage());
+            throw new CustomException("Error retrieving online list: " + e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
         }
-
-        List<UserResponse> responses = userPage.getContent().stream()
-                .map(user -> mapData.mapOne(user, UserResponse.class))
-                .toList();
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("totalItems", userPage.getTotalElements());
-        response.put("totalPages", userPage.getTotalPages());
-        response.put("currentPage", userPage.getNumber());
-        response.put("users", responses);
-
-        return response;
     }
 
     @Override
-    public BattleUserResponse getBattleUserDetail(String jwtToken) {
-        // Assuming Token model and TokenRepository exist
+    public BattleUserResponse getBattleUserDetail(String jwtToken, Pageable pageable) {
         Token token = tokenRepository.findByAccessToken(jwtToken)
                 .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
 
         User user = userRepository.findById(token.getUser().getUserId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
+        // Fetch BattleUser
         BattleUser battleUser = battleUserRepository.findByUserAndDeletedAtIsNull(user)
                 .orElseGet(() -> {
                     BattleUser newBattleUser = BattleUser.builder()
@@ -574,27 +587,10 @@ public class BattleServiceImpl implements BattleService {
                     return battleUserRepository.save(newBattleUser);
                 });
 
-        return BattleUserResponse.builder()
-                .battleUserId(battleUser.getBattleUserId())
-                .userId(battleUser.getUser().getUserId())
-                .username(battleUser.getUser().getUsername())
-                .totalBattleWon(battleUser.getTotalBattleWon())
-                .totalBattleLost(battleUser.getTotalBattleLost())
-                .build();
-    }
-
-    @Override
-    public List<BattleHistoryResponse> getUserBattleHistory(String jwtToken, Pageable pageable) {
-        Token token = tokenRepository.findByAccessToken(jwtToken)
-                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
-
-        User user = userRepository.findById(token.getUser().getUserId())
-                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
-
-        // Find battles where the user participated
+        // Fetch battle history
         Page<Battle> battles = battleRepository.findByPlayerScoresUserIdAndStatus(user.getUserId(), "ENDED", pageable);
 
-        return battles.getContent().stream().map(battle -> {
+        List<BattleHistoryResponse> historyResponses = battles.getContent().stream().map(battle -> {
             // Get user's PlayerScore
             PlayerScore userScore = battle.getPlayerScores().stream()
                     .filter(ps -> ps.getUserId().equals(user.getUserId()))
@@ -626,8 +622,17 @@ public class BattleServiceImpl implements BattleService {
                     .score(userScore.getScore())
                     .correctAnswers(userScore.getCorrectAnswers())
                     .incorrectAnswers(userScore.getIncorrectAnswers())
-                    .completedAt(battle.getUpdatedAt())
+                    .completedAt(battle.getEndTime() != null ? battle.getEndTime().atStartOfDay(ZoneId.systemDefault()).toInstant() : null)
                     .build();
         }).collect(Collectors.toList());
+
+        return BattleUserResponse.builder()
+                .battleUserId(battleUser.getBattleUserId())
+                .userId(battleUser.getUser().getUserId())
+                .username(battleUser.getUser().getUsername())
+                .totalBattleWon(battleUser.getTotalBattleWon())
+                .totalBattleLost(battleUser.getTotalBattleLost())
+                .historyResponses(historyResponses)
+                .build();
     }
 }

@@ -143,52 +143,41 @@ public class BattleController {
 
     @GetMapping("/get-online-list")
     public ResponseEntity<ResponseObject<Map<String, Object>>> getOnlineList(
+            @RequestHeader("Authorization") String token,
             @RequestParam(name = "page", required = false) String page,
             @RequestParam(name = "size", required = false) String size,
-            @RequestParam(name = "search", required = false, defaultValue = "") String search) {
+            @RequestParam(name = "search", required = false) String search) {
         try {
-            Map<String, Object> result = battleService.getOnlineList(page, size, search);
+            String jwtToken = token.replace("Bearer ", "");
+            Map<String, Object> response = battleService.getOnlineList(jwtToken, page, size, search);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Online list retrieved successfully", result.isEmpty() ? Collections.emptyMap() : result));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error retrieving online list: " + e.getMessage(), null));
-        }
-    }
-
-    @GetMapping("/user/battle-user-detail")
-    public ResponseEntity<ResponseObject<BattleUserResponse>> getBattleUserDetail(@RequestHeader("Authorization") String token) {
-        String jwtToken = token.replace("Bearer ", "");
-        try {
-            BattleUserResponse response = battleService.getBattleUserDetail(jwtToken);
-            return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Thông tin thống kê trận đấu của người dùng", response));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Danh sách người dùng trực tuyến", response));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
-                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy thống kê trận đấu", null));
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 
-    @GetMapping("/user/battle-history")
-    public ResponseEntity<ResponseObject<List<BattleHistoryResponse>>> getUserBattleHistory(
+    @GetMapping("/user/battle-user-detail")
+    public ResponseEntity<ResponseObject<BattleUserResponse>> getBattleUserDetail(
             @RequestHeader("Authorization") String token,
             @RequestParam(name = "page", required = false) String page,
             @RequestParam(name = "size", required = false) String size) {
         String jwtToken = token.replace("Bearer ", "");
         try {
             int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
-            int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+            int pageSize = (size != null && !page.isBlank()) ? Integer.parseInt(size) : 10;
             Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.DESC, "endTime"));
 
-            List<BattleHistoryResponse> response = battleService.getUserBattleHistory(jwtToken, pageable);
+            BattleUserResponse response = battleService.getBattleUserDetail(jwtToken, pageable);
             return ResponseEntity.status(HttpStatus.OK)
-                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lịch sử trận đấu của người dùng", response));
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Thông tin thống kê và lịch sử trận đấu của người dùng", response));
         } catch (CustomException e) {
             return ResponseEntity.status(e.getStatus())
-                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy lịch sử trận đấu", null));
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage() != null ? e.getMessage() : "Lỗi khi lấy thông tin trận đấu", null));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));

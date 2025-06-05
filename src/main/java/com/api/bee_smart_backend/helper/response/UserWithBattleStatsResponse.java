@@ -5,17 +5,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
-
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 @Data
-public class BattleUserResponse {
-    private String battleUserId;
+public class UserWithBattleStatsResponse {
     private String userId;
     private String username;
     private int totalBattleWon;
     private int totalBattleLost;
-    private List<BattleHistoryResponse> historyResponses;
 }
