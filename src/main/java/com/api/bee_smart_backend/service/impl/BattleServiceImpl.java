@@ -536,8 +536,8 @@ public class BattleServiceImpl implements BattleService {
 
             Page<User> users;
             if (search != null && !search.isBlank()) {
-                users = userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCaseAndIsOnlineTrueAndDeletedAtIsNullAndRoleNotAndUserIdNot(
-                        search, search, pageable, "SYSTEM_ADMIN", currentUserId);
+                users = userRepository.findByUsernameContainingIgnoreCaseAndIsOnlineTrueAndDeletedAtIsNullAndRoleNotAndUserIdNot(
+                        search, pageable, "SYSTEM_ADMIN", currentUserId);
             } else {
                 users = userRepository.findByIsOnlineTrueAndDeletedAtIsNullAndRoleNotAndUserIdNot(pageable, "SYSTEM_ADMIN", currentUserId);
             }
