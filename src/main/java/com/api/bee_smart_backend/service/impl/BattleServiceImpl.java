@@ -622,7 +622,7 @@ public class BattleServiceImpl implements BattleService {
                     .score(userScore.getScore())
                     .correctAnswers(userScore.getCorrectAnswers())
                     .incorrectAnswers(userScore.getIncorrectAnswers())
-                    .completedAt(battle.getEndTime() != null ? battle.getEndTime().atStartOfDay(ZoneId.systemDefault()).toInstant() : null)
+                    .completedAt(battle.getUpdatedAt())
                     .build();
         }).collect(Collectors.toList());
 
