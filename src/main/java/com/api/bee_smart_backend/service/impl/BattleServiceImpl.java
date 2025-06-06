@@ -341,13 +341,11 @@ public class BattleServiceImpl implements BattleService {
             }
 
             // Proceed to next question
-            CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
-                if (battleQuestionNumbers.getOrDefault(battleId, 0) >= 10) {
-                    endBattle(battleId);
-                } else {
-                    sendNextQuestion(battleId);
-                }
-            });
+            if (battleQuestionNumbers.getOrDefault(battleId, 0) >= 10) {
+                endBattle(battleId);
+            } else {
+                sendNextQuestion(battleId);
+            }
 
             return updatedBattle;
         }

@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -40,6 +41,7 @@ public class QuestionServiceImpl implements QuestionService {
     private final MapData mapData;
     private final Instant now = Instant.now();
     private final Random random = new Random();
+    private final Map<String, List<Question>> questionCache = new ConcurrentHashMap<>();
 
     @Override
     public QuestionResponse addQuestionToQuiz(String quizId, QuestionRequest request) {
@@ -237,30 +239,20 @@ public class QuestionServiceImpl implements QuestionService {
 
     @Override
     public Question getRandomQuestionByGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
-        List<Question> questions = getQuestionsForGradeAndSubject(gradeId, subjectId, excludeIds);
+        String cacheKey = gradeId + ":" + subjectId;
+        List<Question> questions = questionCache.computeIfAbsent(cacheKey, k -> getQuestionsForGradeAndSubject(gradeId, subjectId, null));
 
         if (questions == null || questions.isEmpty()) {
-            if (excludeIds != null && !excludeIds.isEmpty()) {
-                log.info("No unused questions found, retrying without exclusions");
-                questions = getQuestionsForGradeAndSubject(gradeId, subjectId, null);
-            }
-        }
-
-        // If still no questions, try questions from any subject in the same grade
-        if (questions == null || questions.isEmpty()) {
-            log.info("Falling back to any subject in the same grade");
-            List<Topic> allGradeTopics = topicRepository.findByGrade_GradeId(gradeId);
-            // Process topics to get questions...
-            // For now, just return null safely
-        }
-
-        if (questions == null || questions.isEmpty()) {
-            log.warn("No questions available for the provided criteria");
             return null;
         }
 
-        // Pick random question
-        return questions.get(random.nextInt(questions.size()));
+        List<Question> availableQuestions = excludeIds == null
+                ? questions
+                : questions.stream()
+                .filter(q -> !excludeIds.contains(q.getQuestionId()))
+                .collect(Collectors.toList());
+
+        return availableQuestions.isEmpty() ? null : availableQuestions.get(random.nextInt(availableQuestions.size()));
     }
 
     private List<Question> getQuestionsForGradeAndSubject(String gradeId, String subjectId, Set<String> excludeIds) {
