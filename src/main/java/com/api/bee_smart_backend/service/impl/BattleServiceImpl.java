@@ -587,8 +587,15 @@ public class BattleServiceImpl implements BattleService {
                     return battleUserRepository.save(newBattleUser);
                 });
 
+        // Create Pageable with sorting by updatedAt in descending order
+        Pageable updatedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                Sort.by(Sort.Direction.DESC, "updatedAt")
+        );
+
         // Fetch battle history
-        Page<Battle> battles = battleRepository.findByPlayerScoresUserIdAndStatus(user.getUserId(), "ENDED", pageable);
+        Page<Battle> battles = battleRepository.findByPlayerScoresUserIdAndStatus(user.getUserId(), "ENDED", updatedPageable);
 
         List<BattleHistoryResponse> historyResponses = battles.getContent().stream().map(battle -> {
             // Get user's PlayerScore
