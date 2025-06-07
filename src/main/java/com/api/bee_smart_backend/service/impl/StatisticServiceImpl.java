@@ -10,6 +10,7 @@ import com.api.bee_smart_backend.model.record.LessonRecord;
 import com.api.bee_smart_backend.model.record.QuizRecord;
 import com.api.bee_smart_backend.repository.*;
 import com.api.bee_smart_backend.service.StatisticService;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +26,9 @@ import java.time.LocalTime;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Slf4j
@@ -703,83 +706,130 @@ public class StatisticServiceImpl implements StatisticService {
             endDate = currentDate;
         }
 
+        // Get battles for the date range
         List<Battle> battles = battleRepository.findAllByStartTimeBetween(startDate, endDate);
 
-        // Filter by subject if provided
+        if (battles.isEmpty()) {
+            return initializeEmptyResult(startDate, endDate);
+        }
+
+        // Pre-load all subjects and grades to avoid N+1 queries
+        Set<String> subjectIds = battles.stream()
+                .map(Battle::getSubjectId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Set<String> gradeIds = battles.stream()
+                .map(Battle::getGradeId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Batch fetch subjects and grades
+        Map<String, Subject> subjectMap = subjectRepository.findAllById(subjectIds)
+                .stream()
+                .collect(Collectors.toMap(Subject::getSubjectId, Function.identity()));
+
+        Map<String, Grade> gradeMap = gradeRepository.findAllById(gradeIds)
+                .stream()
+                .collect(Collectors.toMap(Grade::getGradeId, Function.identity()));
+
+        // Filter battles by subject if provided
+        List<Battle> filteredBattles = battles;
         if (subjectName != null && !subjectName.isBlank()) {
-            battles = battles.stream()
+            filteredBattles = battles.stream()
                     .filter(battle -> {
-                        Subject subject = subjectRepository.findById(battle.getSubjectId()).orElse(null);
+                        Subject subject = subjectMap.get(battle.getSubjectId());
                         return subject != null && subjectName.equals(subject.getSubjectName());
                     })
                     .toList();
         }
 
-        Map<String, Map<String, Double>> totalPoints = new LinkedHashMap<>();
-        Map<String, Map<String, Integer>> battleCount = new LinkedHashMap<>();
-        Map<String, Map<String, Double>> averageScores = new LinkedHashMap<>();
+        if (filteredBattles.isEmpty()) {
+            return initializeEmptyResult(startDate, endDate);
+        }
 
+        // Use streams for more efficient processing
         List<String> grades = List.of("Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5");
 
-        // Initialize data structures for each date and grade
+        // Group battles by date and grade, then calculate averages
+        Map<String, Map<String, List<Double>>> scoresGroupedByDateAndGrade = filteredBattles.stream()
+                .filter(battle -> battle.getStartTime() != null && battle.getGradeId() != null)
+                .flatMap(battle -> {
+                    String dateStr = battle.getStartTime().format(DateTimeFormatter.ofPattern("dd-MM"));
+                    Grade grade = gradeMap.get(battle.getGradeId());
+
+                    if (grade == null || battle.getPlayerScores() == null) {
+                        return Stream.empty();
+                    }
+
+                    String gradeName = grade.getGradeName();
+
+                    return battle.getPlayerScores().stream()
+                            .map(playerScore -> new ScoreEntry(dateStr, gradeName, playerScore.getScore()));
+                })
+                .collect(Collectors.groupingBy(
+                        ScoreEntry::getDateStr,
+                        LinkedHashMap::new,
+                        Collectors.groupingBy(
+                                ScoreEntry::getGradeName,
+                                LinkedHashMap::new,
+                                Collectors.mapping(ScoreEntry::getScore, Collectors.toList())
+                        )
+                ));
+
+        // Calculate averages and initialize result structure
+        Map<String, Map<String, Double>> averageScores = new LinkedHashMap<>();
+
+        // Initialize all dates in the range
         for (LocalDate dateIter = startDate; !dateIter.isAfter(endDate); dateIter = dateIter.plusDays(1)) {
             String dateStr = dateIter.format(DateTimeFormatter.ofPattern("dd-MM"));
-            totalPoints.putIfAbsent(dateStr, new LinkedHashMap<>());
-            battleCount.putIfAbsent(dateStr, new LinkedHashMap<>());
-            averageScores.putIfAbsent(dateStr, new LinkedHashMap<>());
+            averageScores.put(dateStr, new LinkedHashMap<>());
 
             for (String grade : grades) {
-                totalPoints.get(dateStr).put(grade, 0.0);
-                battleCount.get(dateStr).put(grade, 0);
-                averageScores.get(dateStr).put(grade, 0.0);
-            }
-        }
+                List<Double> scores = scoresGroupedByDateAndGrade
+                        .getOrDefault(dateStr, Collections.emptyMap())
+                        .getOrDefault(grade, Collections.emptyList());
 
-        // Process battles and aggregate by date and grade
-        for (Battle battle : battles) {
-            LocalDate startTime = battle.getStartTime();
-            if (startTime == null) continue;
+                double average = scores.isEmpty() ? 0.0 :
+                        Math.round(scores.stream().mapToDouble(Double::doubleValue).average().orElse(0.0) * 100.0) / 100.0;
 
-            String dateStr = startTime.format(DateTimeFormatter.ofPattern("dd-MM"));
-
-            // Get the grade for this battle
-            Grade grade = gradeRepository.findById(battle.getGradeId()).orElse(null);
-            if (grade == null) continue;
-
-            String gradeName = grade.getGradeName();
-
-            totalPoints.putIfAbsent(dateStr, new LinkedHashMap<>());
-            battleCount.putIfAbsent(dateStr, new LinkedHashMap<>());
-
-            for (PlayerScore playerScore : battle.getPlayerScores()) {
-                double currentTotalPoints = totalPoints.get(dateStr).getOrDefault(gradeName, 0.0);
-                int currentBattleCount = battleCount.get(dateStr).getOrDefault(gradeName, 0);
-
-                totalPoints.get(dateStr).put(gradeName, currentTotalPoints + playerScore.getScore());
-                battleCount.get(dateStr).put(gradeName, currentBattleCount + 1);
-            }
-        }
-
-        // Calculate averages for each date and grade
-        for (String dateStr : totalPoints.keySet()) {
-            Map<String, Double> dailyPoints = totalPoints.get(dateStr);
-            Map<String, Integer> dailyBattleCount = battleCount.get(dateStr);
-            Map<String, Double> dailyAverageScores = averageScores.get(dateStr);
-
-            for (String grade : grades) {
-                double totalPointsForGrade = dailyPoints.getOrDefault(grade, 0.0);
-                int totalBattlesForGrade = dailyBattleCount.getOrDefault(grade, 0);
-
-                if (totalBattlesForGrade > 0) {
-                    double averageScore = totalPointsForGrade / totalBattlesForGrade;
-                    dailyAverageScores.put(grade, Math.round(averageScore * 100.0) / 100.0);
-                } else {
-                    dailyAverageScores.put(grade, 0.0);
-                }
+                averageScores.get(dateStr).put(grade, average);
             }
         }
 
         return averageScores;
+    }
+
+    // Helper method to initialize empty result structure
+    private Map<String, Map<String, Double>> initializeEmptyResult(LocalDate startDate, LocalDate endDate) {
+        Map<String, Map<String, Double>> result = new LinkedHashMap<>();
+        List<String> grades = List.of("Lớp 1", "Lớp 2", "Lớp 3", "Lớp 4", "Lớp 5");
+
+        for (LocalDate dateIter = startDate; !dateIter.isAfter(endDate); dateIter = dateIter.plusDays(1)) {
+            String dateStr = dateIter.format(DateTimeFormatter.ofPattern("dd-MM"));
+            result.put(dateStr, new LinkedHashMap<>());
+
+            for (String grade : grades) {
+                result.get(dateStr).put(grade, 0.0);
+            }
+        }
+
+        return result;
+    }
+
+    // Helper class for cleaner stream processing
+    @Getter
+    private static class ScoreEntry {
+        private final String dateStr;
+        private final String gradeName;
+        private final double score;
+
+        public ScoreEntry(String dateStr, String gradeName, double score) {
+            this.dateStr = dateStr;
+            this.gradeName = gradeName;
+            this.score = score;
+        }
+
     }
 
     private String getBattleScoreRange(int score) {
