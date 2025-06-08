@@ -27,4 +27,6 @@ public interface BattleRepository extends MongoRepository<Battle, String> {
             "{ $project: { subjectId: '$_id', userCount: { $size: '$users' }, _id: 0 } }"
     })
     AggregationResults<Map> aggregateUsersBySubject();
+
+    List<Battle> findByStatus(String ended);
 }

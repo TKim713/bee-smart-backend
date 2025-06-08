@@ -650,8 +650,17 @@ public class StatisticServiceImpl implements StatisticService {
 
     @Override
     public Map<String, Map<String, Integer>> getBattleScoreDistributionBySubject() {
+        // Fetch all data in bulk
         List<Subject> subjects = subjectRepository.findAll();
-        List<Battle> battles = battleRepository.findAll();
+        List<Battle> battles = battleRepository.findByStatus("ENDED");
+
+        // Create subject lookup map to avoid repeated database calls
+        Map<String, String> subjectIdToNameMap = subjects.stream()
+                .collect(Collectors.toMap(
+                        Subject::getSubjectId,
+                        Subject::getSubjectName,
+                        (existing, replacement) -> existing // Handle potential duplicates
+                ));
 
         List<String> scoreRanges = List.of("0-50", "51-70", "71-90", "91-100");
         Map<String, Map<String, Integer>> chartData = new LinkedHashMap<>();
@@ -665,31 +674,25 @@ public class StatisticServiceImpl implements StatisticService {
             }
         }
 
-        // Process battle records
+        // Process battle records using the lookup map
         for (Battle battle : battles) {
             String subjectId = battle.getSubjectId();
-            Subject subject = subjectRepository.findById(subjectId).orElse(null);
-            if (subject == null) continue;
+            String subjectName = subjectIdToNameMap.get(subjectId);
 
-            String subjectName = subject.getSubjectName();
-            for (PlayerScore playerScore : battle.getPlayerScores()) {
-                int score = playerScore.getScore();
-                String scoreRange = getBattleScoreRange(score);
+            // Skip if subject not found (defensive programming)
+            if (subjectName == null) continue;
 
-                Map<String, Integer> subjectData = chartData.get(subjectName);
-                int currentCount = subjectData.getOrDefault(scoreRange, 0);
-                subjectData.put(scoreRange, currentCount + 1);
-            }
-        }
+            List<PlayerScore> playerScores = battle.getPlayerScores();
+            if (playerScores != null) {
+                for (PlayerScore playerScore : playerScores) {
+                    int score = playerScore.getScore();
+                    String scoreRange = getBattleScoreRange(score);
 
-        // Convert counts to percentages
-        for (String subjectName : chartData.keySet()) {
-            Map<String, Integer> scoreData = chartData.get(subjectName);
-            int totalScores = scoreData.values().stream().mapToInt(Integer::intValue).sum();
-            for (String range : scoreRanges) {
-                int count = scoreData.get(range);
-                double percentage = totalScores > 0 ? (double) count / totalScores * 100 : 0;
-                scoreData.put(range, (int) Math.round(percentage));
+                    Map<String, Integer> subjectData = chartData.get(subjectName);
+                    if (subjectData != null) {
+                        subjectData.merge(scoreRange, 1, Integer::sum);
+                    }
+                }
             }
         }
 
