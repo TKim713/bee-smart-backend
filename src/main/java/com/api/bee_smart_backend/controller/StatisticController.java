@@ -148,9 +148,9 @@ public class StatisticController {
     }
 
     @GetMapping("/admin/battle-users-by-subject")
-    public ResponseEntity<ResponseObject<Map<String, Integer>>> getUsersJoinedBattleBySubject() {
+    public ResponseEntity<ResponseObject<Map<String, Double>>> getUsersJoinedBattleBySubject() {
         try {
-            Map<String, Integer> chartData = statisticService.getUsersJoinedBattleBySubject();
+            Map<String, Double> chartData = statisticService.getUsersJoinedBattleBySubject();
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy dữ liệu số người tham gia battle theo môn học thành công", chartData));
         } catch (Exception e) {

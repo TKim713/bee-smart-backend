@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -609,39 +610,39 @@ public class StatisticServiceImpl implements StatisticService {
     }
 
     @Override
-    public Map<String, Integer> getUsersJoinedBattleBySubject() {
+    public Map<String, Double> getUsersJoinedBattleBySubject() {
         List<Subject> subjects = subjectRepository.findAll();
-        List<Battle> battles = battleRepository.findAll();
+        Map<String, String> subjectIdToName = subjects.stream()
+                .collect(Collectors.toMap(Subject::getSubjectId, Subject::getSubjectName));
 
-        Map<String, Set<String>> subjectUserMap = new HashMap<>();
-        // Initialize all subjects with empty user sets
+        AggregationResults<Map> results = battleRepository.aggregateUsersBySubject();
+        Map<String, Integer> userCounts = new LinkedHashMap<>();
+        int totalUsers = 0;
+
+        // Initialize counts for all subjects
         for (Subject subject : subjects) {
-            subjectUserMap.put(subject.getSubjectName(), new HashSet<>());
+            userCounts.put(subject.getSubjectName(), 0);
         }
 
-        // Aggregate users by subject
-        for (Battle battle : battles) {
-            String subjectId = battle.getSubjectId();
-            Subject subject = subjectRepository.findById(subjectId).orElse(null);
-            if (subject == null) continue;
-
-            String subjectName = subject.getSubjectName();
-            for (PlayerScore playerScore : battle.getPlayerScores()) {
-                subjectUserMap.get(subjectName).add(playerScore.getUserId());
+        // Populate user counts from aggregation
+        for (Map result : results.getMappedResults()) {
+            String subjectId = (String) result.get("subjectId");
+            Integer userCount = (Integer) result.get("userCount");
+            String subjectName = subjectIdToName.get(subjectId);
+            if (subjectName != null) {
+                userCounts.put(subjectName, userCount);
+                totalUsers += userCount;
             }
         }
 
-        Map<String, Integer> chartData = new LinkedHashMap<>();
-        int totalUsers = subjectUserMap.values().stream()
-                .flatMap(Set::stream)
-                .distinct()
-                .mapToInt(v -> 1)
-                .sum();
-
-        for (Map.Entry<String, Set<String>> entry : subjectUserMap.entrySet()) {
-            int userCount = entry.getValue().size();
+        // Calculate percentages with 2 decimal places
+        Map<String, Double> chartData = new LinkedHashMap<>();
+        for (Map.Entry<String, Integer> entry : userCounts.entrySet()) {
+            int userCount = entry.getValue();
             double percentage = totalUsers > 0 ? (double) userCount / totalUsers * 100 : 0;
-            chartData.put(entry.getKey(), (int) Math.round(percentage));
+            // Round to 2 decimal places
+            double roundedPercentage = Math.round(percentage * 100.0) / 100.0;
+            chartData.put(entry.getKey(), roundedPercentage);
         }
 
         return chartData;

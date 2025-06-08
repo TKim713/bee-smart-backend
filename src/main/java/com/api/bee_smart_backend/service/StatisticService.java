@@ -21,7 +21,7 @@ public interface StatisticService {
 
     Map<String, Map<String, Integer>> getQuizScoreStatisticsBySubject();
 
-    Map<String, Integer> getUsersJoinedBattleBySubject();
+    Map<String, Double> getUsersJoinedBattleBySubject();
 
     Map<String, Map<String, Integer>> getBattleScoreDistributionBySubject();
 
