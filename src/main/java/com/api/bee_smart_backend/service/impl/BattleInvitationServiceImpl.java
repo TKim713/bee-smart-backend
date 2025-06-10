@@ -129,6 +129,7 @@ public class BattleInvitationServiceImpl implements BattleInvitationService {
                 .link("/battle/invitation/" + invitation.getInvitationId())
                 .type("BATTLE_INVITATION")
                 .read(false)
+                .createdAt(Instant.now())
                 .build();
 
         notification = notificationRepository.save(notification);
@@ -177,23 +178,30 @@ public class BattleInvitationServiceImpl implements BattleInvitationService {
         invitation.setUpdatedAt(Instant.now());
         invitationRepository.save(invitation);
 
-        // Send immediate battle redirect message to inviter (no notification needed)
-        notificationWebSocketHandler.sendBattleAcceptedMessage(
-                invitation.getInviter().getUserId(),
-                battle.getBattleId()
-        );
-
-        // Create notification for inviter (for history purposes, but won't trigger browser notification)
+        // Create notification for inviter
         Notification inviterNotification = Notification.builder()
                 .user(invitation.getInviter())
                 .title("Lời mời được chấp nhận")
                 .message(user.getUsername() + " đã chấp nhận lời mời thách đấu")
-                .link("/battle-detail/" + battle.getBattleId()) // Update to use battle-detail
+                .link("/battle-detail/" + battle.getBattleId())
                 .type("BATTLE_ACCEPTED")
-                .read(true) // Mark as read since user is auto-redirected
+                .read(false) // Đặt read: false để hiển thị badge
+                .createdAt(Instant.now())
                 .build();
 
         notificationRepository.save(inviterNotification);
+        // Gửi thông báo qua WebSocket
+        notificationWebSocketHandler.sendNotification(invitation.getInviter().getUserId(), inviterNotification);
+
+        // Send battle redirect message to both inviter and invitee
+        notificationWebSocketHandler.sendBattleAcceptedMessage(
+                invitation.getInviter().getUserId(),
+                battle.getBattleId()
+        );
+        notificationWebSocketHandler.sendBattleAcceptedMessage(
+                userId,
+                battle.getBattleId()
+        );
 
         log.info("Battle invitation {} accepted, battle {} created", invitationId, battle.getBattleId());
 

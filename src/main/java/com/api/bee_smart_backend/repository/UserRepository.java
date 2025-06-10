@@ -14,7 +14,7 @@ public interface UserRepository extends MongoRepository<User, String> {
 
     Optional<User> findByUserIdAndDeletedAtIsNull(String userId);
 
-    Page<User> findByIsOnlineTrueAndDeletedAtIsNull(Pageable pageable);
+    Page<User> findByIsOnlineTrueAndDeletedAtIsNullAndRoleNotAndUserIdNot(Pageable pageable, String systemAdmin, String currentUserId);
 
-    Page<User> findByIsOnlineTrueAndDeletedAtIsNullAndUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(String search, String search1, Pageable pageable);
+    Page<User> findByUsernameContainingIgnoreCaseAndIsOnlineTrueAndDeletedAtIsNullAndRoleNotAndUserIdNot(String search, Pageable pageable, String systemAdmin, String currentUserId);
 }
