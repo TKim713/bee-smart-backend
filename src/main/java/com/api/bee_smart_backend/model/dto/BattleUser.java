@@ -26,7 +26,7 @@ public class BattleUser {
     @Id
     private String battleUserId;
 
-    @DBRef
+    @DBRef(lazy = true)
     private User user;
     private int totalBattleWon;
     private int totalBattleLost;

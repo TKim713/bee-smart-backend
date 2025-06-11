@@ -27,12 +27,12 @@ public class Quiz {
     private String image;
     private int quizDuration;
 
-    @DBRef
+    @DBRef(lazy = true)
     private Lesson lesson;
-    @DBRef
+    @DBRef(lazy = true)
     private Topic topic;
 
-    @DBRef
+    @DBRef(lazy = true)
     private List<Question> questions = new ArrayList<>();
 
     @CreatedDate

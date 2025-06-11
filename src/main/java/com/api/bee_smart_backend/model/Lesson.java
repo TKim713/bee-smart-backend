@@ -27,7 +27,7 @@ public class Lesson {
     private String content;
     private int viewCount;
 
-    @DBRef
+    @DBRef(lazy = true)
     private Topic topic;
 
     @CreatedDate

@@ -15,6 +15,6 @@ import java.util.List;
 @AllArgsConstructor
 @Document(collection = "customer")
 public class Parent extends Customer {
-    @DBRef
+    @DBRef(lazy = true)
     private List<Student> students = new ArrayList<>();
 }

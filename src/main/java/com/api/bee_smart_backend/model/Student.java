@@ -13,7 +13,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @Document(collection = "customer")
 public class Student extends Customer {
     private String grade;
-    @DBRef
+    @DBRef(lazy = true)
     private Parent parent;
     private String className;
     private String school;

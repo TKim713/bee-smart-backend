@@ -32,7 +32,7 @@ public class Token {
 
     private Instant expirationTime;
 
-    @DBRef
+    @DBRef(lazy = true)
     private User user;
 
     @CreatedDate

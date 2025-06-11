@@ -22,16 +22,16 @@ public class Topic {
     private String topicName;
     private int topicNumber;
 
-    @DBRef
+    @DBRef(lazy = true)
     private Grade grade;
-    @DBRef
+    @DBRef(lazy = true)
     private Subject subject;
     private String semester;
 
-    @DBRef
+    @DBRef(lazy = true)
     private BookType bookType;
 
-    @DBRef
+    @DBRef(lazy = true)
     @ToString.Exclude
     private List<Lesson> lessons = new ArrayList<>();
 

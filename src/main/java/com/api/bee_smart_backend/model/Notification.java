@@ -21,7 +21,7 @@ public class Notification {
     @Id
     private String notificationId;
 
-    @DBRef
+    @DBRef(lazy = true)
     private User user;
     private String title;
     private String message;

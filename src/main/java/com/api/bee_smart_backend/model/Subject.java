@@ -21,7 +21,7 @@ public class Subject {
     private String subjectId;
     private String subjectName;
 
-    @DBRef
+    @DBRef(lazy = true)
     @ToString.Exclude
     private List<Topic> topics = new ArrayList<>();
 

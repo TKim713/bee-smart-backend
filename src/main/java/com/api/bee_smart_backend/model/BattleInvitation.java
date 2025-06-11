@@ -21,10 +21,10 @@ public class BattleInvitation {
     @Id
     private String invitationId;
 
-    @DBRef
+    @DBRef(lazy = true)
     private User inviter; // User who sent the invitation
 
-    @DBRef
+    @DBRef(lazy = true)
     private User invitee; // User who received the invitation
 
     private String gradeId;

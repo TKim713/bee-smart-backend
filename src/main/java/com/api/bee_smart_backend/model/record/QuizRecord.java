@@ -24,10 +24,10 @@ public class QuizRecord {
     @Id
     private String recordId;
 
-    @DBRef
+    @DBRef(lazy = true)
     private User user;
 
-    @DBRef
+    @DBRef(lazy = true)
     private Quiz quiz;
     private String gradeName;
 

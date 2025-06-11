@@ -28,7 +28,7 @@ public abstract class Customer {
     private String phone;
     private String address;
 
-    @DBRef
+    @DBRef(lazy = true)
     private User user;
 
     @CreatedDate

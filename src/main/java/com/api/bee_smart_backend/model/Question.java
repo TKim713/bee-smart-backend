@@ -30,7 +30,7 @@ public class Question {
     private List<String> answers;
 
     @ToString.Exclude
-    @DBRef
+    @DBRef(lazy = true)
     private Quiz quiz;
 
     @CreatedDate
