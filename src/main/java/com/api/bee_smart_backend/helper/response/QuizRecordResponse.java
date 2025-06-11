@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -19,5 +20,6 @@ public class QuizRecordResponse {
     private int correctAnswers;
     private double points;
     private long timeSpent;
+    private List<QuestionResult> questionResults;
     private Instant createdAt;
 }

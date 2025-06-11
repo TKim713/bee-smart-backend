@@ -3,8 +3,10 @@ package com.api.bee_smart_backend.controller;
 import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.QuizRequest;
 import com.api.bee_smart_backend.helper.request.SubmissionRequest;
+import com.api.bee_smart_backend.helper.response.QuizRecordResponse;
 import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
+import com.api.bee_smart_backend.model.record.QuizRecord;
 import com.api.bee_smart_backend.service.QuestionService;
 import com.api.bee_smart_backend.service.QuizService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -164,6 +166,43 @@ public class QuizController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi nộp bài: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/user/records")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getQuizRecordsByUser(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(name = "page", required = false) String page,
+            @RequestParam(name = "size", required = false) String size) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            Map<String, Object> response = quizService.getQuizRecordsByUser(jwtToken, page, size);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách kết quả quiz thành công", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy danh sách kết quả quiz: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping("/user/records/{recordId}")
+    public ResponseEntity<ResponseObject<QuizRecordResponse>> getQuizRecordById(
+            @RequestHeader("Authorization") String token,
+            @PathVariable String recordId) {
+        String jwtToken = token.replace("Bearer ", "");
+        try {
+            QuizRecordResponse response = quizService.getQuizRecordById(jwtToken, recordId);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy kết quả quiz thành công", response));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi khi lấy kết quả quiz: " + e.getMessage(), null));
         }
     }
 }

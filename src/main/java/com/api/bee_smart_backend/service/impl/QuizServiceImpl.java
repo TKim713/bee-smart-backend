@@ -7,6 +7,7 @@ import com.api.bee_smart_backend.helper.exception.CustomException;
 import com.api.bee_smart_backend.helper.request.QuizRequest;
 import com.api.bee_smart_backend.helper.request.SubmissionRequest;
 import com.api.bee_smart_backend.helper.request.UserAnswer;
+import com.api.bee_smart_backend.helper.response.QuizRecordResponse;
 import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.QuestionResult;
 import com.api.bee_smart_backend.model.*;
@@ -29,6 +30,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -268,6 +270,7 @@ public class QuizServiceImpl implements QuizService {
         User user = userRepository.findById(token.getUser().getUserId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
+        // Updated QuizRecord to include questionResults
         QuizRecord quizRecord = QuizRecord.builder()
                 .user(user)
                 .quiz(quiz)
@@ -278,6 +281,7 @@ public class QuizServiceImpl implements QuizService {
                 .timeSpent(request.getTimeSpent())
                 .submitDate(today)
                 .createdAt(now)
+                .questionResults(results) // Store the full results list
                 .build();
 
         quizRecordRepository.save(quizRecord);
@@ -289,15 +293,13 @@ public class QuizServiceImpl implements QuizService {
                     .title("Điểm số thấp trong bài kiểm tra")
                     .message("Điểm của bạn trong " + quiz.getTitle() + " là " + points + ". Hãy xem lại bài học để cải thiện!")
                     .type("QUIZ")
-                    .link("/topics/" + quiz.getTopic().getTopicId() + "/lessons-and-quizzes") // Link to skill list for review
+                    .link("/topics/" + quiz.getTopic().getTopicId() + "/lessons-and-quizzes")
                     .read(false)
                     .createdAt(now)
                     .build();
 
-            // Save notification
             notificationRepository.save(notification);
 
-            // Send real-time notification via WebSocket
             try {
                 NotificationWebSocketHandler notificationHandler = applicationContext.getBean(NotificationWebSocketHandler.class);
                 notificationHandler.sendNotification(user.getUserId(), notification);
@@ -316,5 +318,70 @@ public class QuizServiceImpl implements QuizService {
         response.put("questions", paginatedResults);
 
         return response;
+    }
+
+    @Override
+    public Map<String, Object> getQuizRecordsByUser(String jwtToken, String page, String size) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !page.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
+        User user = userRepository.findById(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        Page<QuizRecord> quizRecordPage = quizRecordRepository.findByUserAndDeletedAtIsNull(user, pageable);
+
+        List<QuizRecordResponse> quizRecordResponses = quizRecordPage.getContent().stream()
+                .map(this::mapToQuizRecordResponse)
+                .collect(Collectors.toList());
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalItems", quizRecordPage.getTotalElements());
+        response.put("totalPages", quizRecordPage.getTotalPages());
+        response.put("currentPage", quizRecordPage.getNumber());
+        response.put("quizRecords", quizRecordResponses);
+
+        return response;
+    }
+
+    @Override
+    public QuizRecordResponse getQuizRecordById(String jwtToken, String recordId) {
+        Token token = tokenRepository.findByAccessToken(jwtToken)
+                .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
+
+        User user = userRepository.findById(token.getUser().getUserId())
+                .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
+
+        QuizRecord quizRecord = quizRecordRepository.findById(recordId)
+                .orElseThrow(() -> new CustomException("Không tìm thấy kết quả quiz với ID: " + recordId, HttpStatus.NOT_FOUND));
+
+        if (!quizRecord.getUser().getUserId().equals(user.getUserId())) {
+            throw new CustomException("Không có quyền truy cập kết quả quiz này", HttpStatus.FORBIDDEN);
+        }
+
+        if (quizRecord.getDeletedAt() != null) {
+            throw new CustomException("Kết quả quiz đã bị xóa", HttpStatus.GONE);
+        }
+
+        // Map QuizRecord to QuizRecordResponse
+        return mapToQuizRecordResponse(quizRecord);
+    }
+
+    private QuizRecordResponse mapToQuizRecordResponse(QuizRecord quizRecord) {
+        return QuizRecordResponse.builder()
+                .recordId(quizRecord.getRecordId())
+                .username(quizRecord.getUser().getUsername()) // Assumes User has getUsername()
+                .quizName(quizRecord.getQuiz().getTitle()) // Assumes Quiz has getTitle()
+                .totalQuestions(quizRecord.getTotalQuestions())
+                .correctAnswers(quizRecord.getCorrectAnswers())
+                .points(quizRecord.getPoints())
+                .timeSpent(quizRecord.getTimeSpent())
+                .questionResults(quizRecord.getQuestionResults())
+                .createdAt(quizRecord.getCreatedAt())
+                .build();
     }
 }
