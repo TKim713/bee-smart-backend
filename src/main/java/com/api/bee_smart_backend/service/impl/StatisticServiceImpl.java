@@ -205,7 +205,7 @@ public class StatisticServiceImpl implements StatisticService {
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
-        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+        int pageSize = (size != null && !page.isBlank()) ? Integer.parseInt(size) : 10;
 
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
         Page<QuizRecord> quizRecordPage;
@@ -251,6 +251,7 @@ public class StatisticServiceImpl implements StatisticService {
                         .correctAnswers(quizRecord.getCorrectAnswers())
                         .points(quizRecord.getPoints())
                         .timeSpent(quizRecord.getTimeSpent())
+                        .questionResults(quizRecord.getQuestionResults()) // Include questionResults
                         .createdAt(quizRecord.getCreatedAt())
                         .build())
                 .toList();
