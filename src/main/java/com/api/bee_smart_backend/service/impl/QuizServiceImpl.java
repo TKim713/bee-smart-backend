@@ -284,7 +284,7 @@ public class QuizServiceImpl implements QuizService {
                 .questionResults(results) // Store the full results list
                 .build();
 
-        quizRecordRepository.save(quizRecord);
+        QuizRecord savedQuizRecord = quizRecordRepository.save(quizRecord);
 
         // Add notification if score is less than 5
         if (points < 5) {
@@ -315,6 +315,7 @@ public class QuizServiceImpl implements QuizService {
         response.put("quizDuration", quiz.getQuizDuration());
         response.put("totalPages", (int) Math.ceil((double) results.size() / pageSize));
         response.put("currentPage", pageNumber);
+        response.put("recordId", savedQuizRecord.getRecordId());
         response.put("questions", paginatedResults);
 
         return response;
