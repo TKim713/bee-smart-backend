@@ -29,6 +29,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -53,82 +54,140 @@ public class TopicServiceImpl implements TopicService {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "topicNumber"));
         Grade existingGrade = gradeRepository.findByGradeNameAndDeletedAtIsNull(grade)
                 .orElseThrow(() -> new CustomException("Lớp không tồn tại", HttpStatus.NOT_FOUND));
 
         Subject existingSubject = subjectRepository.findBySubjectNameAndDeletedAtIsNull(subject)
                 .orElseThrow(() -> new CustomException("Môn học không tồn tại", HttpStatus.NOT_FOUND));
 
-        // Truy vấn MongoDB dựa trên bookType (nếu có)
-        Page<Topic> topicPage;
+        // Lấy tất cả topics trước (không phân trang) để có thể search đầy đủ
+        List<Topic> allTopics;
         if (bookType != null && !bookType.isBlank()) {
             BookType existingBookType = bookTypeRepository.findByBookNameAndDeletedAtIsNull(bookType)
                     .orElseThrow(() -> new CustomException("Loại sách không tồn tại", HttpStatus.NOT_FOUND));
-            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndBookType_BookIdAndDeletedAtIsNull(
-                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, existingBookType.getBookId(), pageable);
+            Page<Topic> allTopicsPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndBookType_BookIdAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, existingBookType.getBookId(), Pageable.unpaged());
+            allTopics = allTopicsPage.getContent();
         } else {
-            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
-                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, pageable);
+            Page<Topic> allTopicsPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, Pageable.unpaged());
+            allTopics = allTopicsPage.getContent();
         }
 
-        // Phần còn lại giữ nguyên
         String chapter = switch (semester) {
             case "Học kì 1" -> "I";
             case "Học kì 2" -> "II";
             default -> "Unknown";
         };
 
-        List<Topic> filteredTopics = topicPage.getContent().stream()
-                .filter(topic -> search == null || topic.getTopicName().toLowerCase().contains(search.toLowerCase()))
-                .toList();
+        // Lọc topics dựa trên search
+        List<Topic> filteredTopics;
+        if (search != null && !search.isBlank()) {
+            String searchLower = search.toLowerCase();
+            filteredTopics = allTopics.stream()
+                    .filter(topic -> {
+                        // Tìm kiếm trong tên topic
+                        boolean topicNameMatch = topic.getTopicName().toLowerCase().contains(searchLower);
 
-        if (filteredTopics.isEmpty() && search != null && !search.isBlank()) {
-            filteredTopics = topicPage.getContent().stream()
-                    .filter(topic -> topic.getLessons().stream()
-                            .anyMatch(lesson -> lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
-                    )
-                    .toList();
+                        // Tìm kiếm trong tên lessons
+                        boolean lessonNameMatch = topic.getLessons().stream()
+                                .anyMatch(lesson -> lesson.getLessonName().toLowerCase().contains(searchLower));
+
+                        // Tìm kiếm trong quiz titles
+                        boolean quizTitleMatch = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), Pageable.unpaged())
+                                .getContent().stream()
+                                .anyMatch(quiz -> quiz.getTitle().toLowerCase().contains(searchLower));
+
+                        return topicNameMatch || lessonNameMatch || quizTitleMatch;
+                    })
+                    .sorted((t1, t2) -> Integer.compare(t1.getTopicNumber(), t2.getTopicNumber()))
+                    .collect(Collectors.toList());
+        } else {
+            filteredTopics = allTopics.stream()
+                    .sorted((t1, t2) -> Integer.compare(t1.getTopicNumber(), t2.getTopicNumber()))
+                    .collect(Collectors.toList());
         }
 
-        if (filteredTopics.isEmpty() && search != null && !search.isBlank()) {
-            filteredTopics = topicPage.getContent().stream()
-                    .filter(topic -> quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), pageable)
-                            .getContent().stream()
-                            .anyMatch(quiz -> quiz.getTitle().toLowerCase().contains(search.toLowerCase()))
-                    )
-                    .toList();
-        }
+        // Tính toán phân trang cho kết quả đã lọc
+        long totalItems = filteredTopics.size();
+        int totalPages = (int) Math.ceil((double) totalItems / pageSize);
 
-        List<TopicLessonResponse> topics = filteredTopics.stream()
+        // Lấy topics cho trang hiện tại
+        int fromIndex = pageNumber * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, filteredTopics.size());
+        List<Topic> pagedTopics = (fromIndex < filteredTopics.size()) ?
+                filteredTopics.subList(fromIndex, toIndex) : List.of();
+
+        // Build response với search highlighting logic
+        List<TopicLessonResponse> topics = pagedTopics.stream()
                 .map(topic -> {
-                    List<LessonResponse> lessons = topic.getLessons().stream()
-                            .filter(lesson -> search == null || lesson.getLessonName().toLowerCase().contains(search.toLowerCase()))
-                            .map(lesson -> {
-                                String formattedLessonName = String.format(
-                                        "%s.%d.%d. %s",
-                                        chapter,
-                                        topic.getTopicNumber(),
-                                        lesson.getLessonNumber(),
-                                        lesson.getLessonName()
-                                );
+                    // Lọc lessons dựa trên search
+                    List<LessonResponse> lessons;
+                    if (search != null && !search.isBlank()) {
+                        String searchLower = search.toLowerCase();
+                        lessons = topic.getLessons().stream()
+                                .filter(lesson -> lesson.getLessonName().toLowerCase().contains(searchLower) ||
+                                        topic.getTopicName().toLowerCase().contains(searchLower)) // Hiển thị tất cả lessons nếu topic match
+                                .map(lesson -> {
+                                    String formattedLessonName = String.format(
+                                            "%s.%d.%d. %s",
+                                            chapter,
+                                            topic.getTopicNumber(),
+                                            lesson.getLessonNumber(),
+                                            lesson.getLessonName()
+                                    );
 
-                                return LessonResponse.builder()
-                                        .lessonId(lesson.getLessonId())
-                                        .lessonName(formattedLessonName)
-                                        .lessonNumber(lesson.getLessonNumber())
-                                        .description(lesson.getDescription())
-                                        .content(lesson.getContent())
-                                        .viewCount(lesson.getViewCount())
-                                        .build();
-                            })
-                            .toList();
+                                    return LessonResponse.builder()
+                                            .lessonId(lesson.getLessonId())
+                                            .lessonName(formattedLessonName)
+                                            .lessonNumber(lesson.getLessonNumber())
+                                            .description(lesson.getDescription())
+                                            .content(lesson.getContent())
+                                            .viewCount(lesson.getViewCount())
+                                            .build();
+                                })
+                                .collect(Collectors.toList());
+                    } else {
+                        // Hiển thị tất cả lessons khi không có search
+                        lessons = topic.getLessons().stream()
+                                .map(lesson -> {
+                                    String formattedLessonName = String.format(
+                                            "%s.%d.%d. %s",
+                                            chapter,
+                                            topic.getTopicNumber(),
+                                            lesson.getLessonNumber(),
+                                            lesson.getLessonName()
+                                    );
 
-                    List<QuizResponse> quizzes = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), pageable)
-                            .getContent().stream()
-                            .filter(quiz -> search == null || quiz.getTitle().toLowerCase().contains(search.toLowerCase()))
-                            .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
-                            .toList();
+                                    return LessonResponse.builder()
+                                            .lessonId(lesson.getLessonId())
+                                            .lessonName(formattedLessonName)
+                                            .lessonNumber(lesson.getLessonNumber())
+                                            .description(lesson.getDescription())
+                                            .content(lesson.getContent())
+                                            .viewCount(lesson.getViewCount())
+                                            .build();
+                                })
+                                .collect(Collectors.toList());
+                    }
+
+                    // Lọc quizzes dựa trên search
+                    List<QuizResponse> quizzes;
+                    if (search != null && !search.isBlank()) {
+                        String searchLower = search.toLowerCase();
+                        quizzes = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), Pageable.unpaged())
+                                .getContent().stream()
+                                .filter(quiz -> quiz.getTitle().toLowerCase().contains(searchLower) ||
+                                        topic.getTopicName().toLowerCase().contains(searchLower)) // Hiển thị tất cả quizzes nếu topic match
+                                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                                .collect(Collectors.toList());
+                    } else {
+                        // Hiển thị tất cả quizzes khi không có search
+                        quizzes = quizRepository.findByTopicInAndLessonIsNullAndDeletedAtIsNull(List.of(topic), Pageable.unpaged())
+                                .getContent().stream()
+                                .map(quiz -> mapData.mapOne(quiz, QuizResponse.class))
+                                .collect(Collectors.toList());
+                    }
 
                     return TopicLessonResponse.builder()
                             .topicId(topic.getTopicId())
@@ -138,11 +197,11 @@ public class TopicServiceImpl implements TopicService {
                             .quizzes(quizzes)
                             .build();
                 })
-                .toList();
+                .collect(Collectors.toList());
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalItems", topicPage.getTotalElements());
-        response.put("totalPages", topicPage.getTotalPages());
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
         response.put("currentPage", pageNumber);
         response.put("topics", topics);
 
@@ -253,43 +312,50 @@ public class TopicServiceImpl implements TopicService {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "topicNumber"));
         Grade existingGrade = gradeRepository.findByGradeNameAndDeletedAtIsNull(grade)
                 .orElseThrow(() -> new CustomException("Lớp không tồn tại", HttpStatus.NOT_FOUND));
 
         Subject existingSubject = subjectRepository.findBySubjectNameAndDeletedAtIsNull(subject)
                 .orElseThrow(() -> new CustomException("Môn học không tồn tại", HttpStatus.NOT_FOUND));
 
-        Page<Topic> topicPage;
+        // Lấy tất cả topics trước để có thể search đầy đủ
+        List<Topic> allTopics;
         if (bookType != null && !bookType.isBlank()) {
             BookType existingBookType = bookTypeRepository.findByBookNameAndDeletedAtIsNull(bookType)
                     .orElseThrow(() -> new CustomException("Loại sách không tồn tại", HttpStatus.NOT_FOUND));
-            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndBookType_BookIdAndDeletedAtIsNull(
-                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, existingBookType.getBookId(), pageable);
+            Page<Topic> allTopicsPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndBookType_BookIdAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, existingBookType.getBookId(), Pageable.unpaged());
+            allTopics = allTopicsPage.getContent();
         } else {
-            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
-                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, pageable);
+            Page<Topic> allTopicsPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, Pageable.unpaged());
+            allTopics = allTopicsPage.getContent();
         }
 
-        List<Topic> filteredTopics = topicPage.getContent().stream()
-                .filter(topic -> search == null || topic.getTopicName().toLowerCase().contains(search.toLowerCase()))
-                .toList();
-
-        long totalItems = filteredTopics.size();
+        // Lọc topics dựa trên search
+        List<Topic> filteredTopics;
         if (search != null && !search.isBlank()) {
-            // Recalculate totalItems based on search across all pages
-            totalItems = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
-                            existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, Pageable.unpaged()
-                    ).getContent().stream()
-                    .filter(topic -> topic.getTopicName().toLowerCase().contains(search.toLowerCase()))
-                    .count();
+            String searchLower = search.toLowerCase();
+            filteredTopics = allTopics.stream()
+                    .filter(topic -> topic.getTopicName().toLowerCase().contains(searchLower))
+                    .sorted((t1, t2) -> Integer.compare(t1.getTopicNumber(), t2.getTopicNumber()))
+                    .collect(Collectors.toList());
         } else {
-            totalItems = topicPage.getTotalElements();
+            filteredTopics = allTopics.stream()
+                    .sorted((t1, t2) -> Integer.compare(t1.getTopicNumber(), t2.getTopicNumber()))
+                    .collect(Collectors.toList());
         }
 
+        // Tính toán phân trang cho kết quả đã lọc
+        long totalItems = filteredTopics.size();
         int totalPages = (int) Math.ceil((double) totalItems / pageSize);
 
-        List<TopicResponse> topicResponses = filteredTopics.stream()
+        // Lấy topics cho trang hiện tại
+        int fromIndex = pageNumber * pageSize;
+        int toIndex = Math.min(fromIndex + pageSize, filteredTopics.size());
+        List<Topic> pagedTopics = (fromIndex < filteredTopics.size()) ?
+                filteredTopics.subList(fromIndex, toIndex) : List.of();
+        List<TopicResponse> topicResponses = pagedTopics.stream()
                 .map(topic -> TopicResponse.builder()
                         .topicId(topic.getTopicId())
                         .topicName(topic.getTopicName())
@@ -299,7 +365,7 @@ public class TopicServiceImpl implements TopicService {
                         .semester(topic.getSemester())
                         .bookName(topic.getBookType() != null ? topic.getBookType().getBookName() : null)
                         .build())
-                .toList();
+                .collect(Collectors.toList());
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalItems", totalItems);
