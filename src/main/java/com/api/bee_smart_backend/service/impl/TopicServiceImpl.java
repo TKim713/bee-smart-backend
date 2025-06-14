@@ -49,7 +49,7 @@ public class TopicServiceImpl implements TopicService {
     private final Instant now = Instant.now();
 
     @Override
-    public Map<String, Object> getTopicsBySubjectGradeAndSemester(String subject, String grade, String semester, String page, String size, String search, String bookType) {
+    public Map<String, Object> getTopicsAndLessonsBySubjectGradeAndSemester(String subject, String grade, String semester, String page, String size, String search, String bookType) {
         int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
         int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
 
@@ -141,8 +141,8 @@ public class TopicServiceImpl implements TopicService {
                 .toList();
 
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("totalItems", topics.size());
-        response.put("totalPages", (int) Math.ceil((double) topics.size() / pageSize));
+        response.put("totalItems", topicPage.getTotalElements());
+        response.put("totalPages", topicPage.getTotalPages());
         response.put("currentPage", pageNumber);
         response.put("topics", topics);
 
@@ -246,6 +246,68 @@ public class TopicServiceImpl implements TopicService {
             topic.setDeletedAt(now);
             topicRepository.save(topic);
         }
+    }
+
+    @Override
+    public Map<String, Object> getTopicsBySubjectGradeAndSemester(String subject, String grade, String semester, String page, String size, String search, String bookType) {
+        int pageNumber = (page != null && !page.isBlank()) ? Integer.parseInt(page) : 0;
+        int pageSize = (size != null && !size.isBlank()) ? Integer.parseInt(size) : 10;
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, Sort.by(Sort.Direction.ASC, "topicNumber"));
+        Grade existingGrade = gradeRepository.findByGradeNameAndDeletedAtIsNull(grade)
+                .orElseThrow(() -> new CustomException("Lớp không tồn tại", HttpStatus.NOT_FOUND));
+
+        Subject existingSubject = subjectRepository.findBySubjectNameAndDeletedAtIsNull(subject)
+                .orElseThrow(() -> new CustomException("Môn học không tồn tại", HttpStatus.NOT_FOUND));
+
+        Page<Topic> topicPage;
+        if (bookType != null && !bookType.isBlank()) {
+            BookType existingBookType = bookTypeRepository.findByBookNameAndDeletedAtIsNull(bookType)
+                    .orElseThrow(() -> new CustomException("Loại sách không tồn tại", HttpStatus.NOT_FOUND));
+            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndBookType_BookIdAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, existingBookType.getBookId(), pageable);
+        } else {
+            topicPage = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
+                    existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, pageable);
+        }
+
+        List<Topic> filteredTopics = topicPage.getContent().stream()
+                .filter(topic -> search == null || topic.getTopicName().toLowerCase().contains(search.toLowerCase()))
+                .toList();
+
+        long totalItems = filteredTopics.size();
+        if (search != null && !search.isBlank()) {
+            // Recalculate totalItems based on search across all pages
+            totalItems = topicRepository.findBySubject_SubjectIdAndGrade_GradeIdAndSemesterAndDeletedAtIsNull(
+                            existingSubject.getSubjectId(), existingGrade.getGradeId(), semester, Pageable.unpaged()
+                    ).getContent().stream()
+                    .filter(topic -> topic.getTopicName().toLowerCase().contains(search.toLowerCase()))
+                    .count();
+        } else {
+            totalItems = topicPage.getTotalElements();
+        }
+
+        int totalPages = (int) Math.ceil((double) totalItems / pageSize);
+
+        List<TopicResponse> topicResponses = filteredTopics.stream()
+                .map(topic -> TopicResponse.builder()
+                        .topicId(topic.getTopicId())
+                        .topicName(topic.getTopicName())
+                        .topicNumber(topic.getTopicNumber())
+                        .gradeName(topic.getGrade().getGradeName())
+                        .subjectName(topic.getSubject().getSubjectName())
+                        .semester(topic.getSemester())
+                        .bookName(topic.getBookType() != null ? topic.getBookType().getBookName() : null)
+                        .build())
+                .toList();
+
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("totalItems", totalItems);
+        response.put("totalPages", totalPages);
+        response.put("currentPage", pageNumber);
+        response.put("topics", topicResponses);
+
+        return response;
     }
 }
 
