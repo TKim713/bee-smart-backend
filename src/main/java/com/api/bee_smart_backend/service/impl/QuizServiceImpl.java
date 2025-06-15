@@ -360,7 +360,10 @@ public class QuizServiceImpl implements QuizService {
         QuizRecord quizRecord = quizRecordRepository.findById(recordId)
                 .orElseThrow(() -> new CustomException("Không tìm thấy kết quả quiz với ID: " + recordId, HttpStatus.NOT_FOUND));
 
-        if (!quizRecord.getUser().getUserId().equals(user.getUserId())) {
+        boolean isOwner = quizRecord.getUser().getUserId().equals(user.getUserId());
+        String userRole = String.valueOf(user.getRole());
+        boolean isAdmin = userRole != null && userRole.equalsIgnoreCase("SYSTEM_ADMIN");
+        if (!isOwner && !isAdmin) {
             throw new CustomException("Không có quyền truy cập kết quả quiz này", HttpStatus.FORBIDDEN);
         }
 
