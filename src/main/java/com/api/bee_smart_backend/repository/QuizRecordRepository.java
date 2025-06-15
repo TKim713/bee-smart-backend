@@ -1,5 +1,6 @@
 package com.api.bee_smart_backend.repository;
 
+import com.api.bee_smart_backend.model.Quiz;
 import com.api.bee_smart_backend.model.User;
 import com.api.bee_smart_backend.model.record.QuizRecord;
 import org.springframework.data.domain.Page;
@@ -24,4 +25,9 @@ public interface QuizRecordRepository extends MongoRepository<QuizRecord, String
     List<QuizRecord> findByUserAndSubmitDateBetween(User user, LocalDateTime start, LocalDateTime end);
 
     Page<QuizRecord> findByUserAndDeletedAtIsNull(User user, Pageable pageable);
+
+    List<QuizRecord> findByQuizAndDeletedAtIsNull(Quiz quiz);
+
+    @Query("{ 'user' : ?0, 'quiz.title' : { '$regex' : ?1, '$options' : 'i' } }")
+    Page<QuizRecord> findByUserAndQuizTitleContainingIgnoreCaseAndDeletedAtIsNull(User user, String search, Pageable pageable);
 }

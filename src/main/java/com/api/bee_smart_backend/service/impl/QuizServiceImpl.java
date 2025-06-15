@@ -134,15 +134,26 @@ public class QuizServiceImpl implements QuizService {
             Quiz quiz = quizRepository.findById(quizId)
                     .orElseThrow(() -> new CustomException("Không tìm thấy quiz: " + quizId, HttpStatus.NOT_FOUND));
 
-            if (quiz.getQuestions() != null && !quiz.getQuestions().isEmpty()) {
-                undeletedQuizIds.add(quizId);
-                continue;
+            // Remove the check that prevents deletion if questions exist
+            // Soft-delete associated questions
+            List<Question> questions = questionRepository.findByQuizAndDeletedAtIsNull(quiz);
+            for (Question question : questions) {
+                question.setDeletedAt(now);
+                questionRepository.save(question);
             }
 
+            // Soft-delete associated quiz records
+            List<QuizRecord> quizRecords = quizRecordRepository.findByQuizAndDeletedAtIsNull(quiz);
+            for (QuizRecord quizRecord : quizRecords) {
+                quizRecord.setDeletedAt(now);
+                quizRecordRepository.save(quizRecord);
+            }
+
+            // Soft-delete the quiz itself
             quiz.setDeletedAt(now);
             quizRepository.save(quiz);
         }
-        return undeletedQuizIds;
+        return undeletedQuizIds; // Will be empty since we no longer prevent deletion
     }
 
     @Override
@@ -331,7 +342,7 @@ public class QuizServiceImpl implements QuizService {
         Token token = tokenRepository.findByAccessToken(jwtToken)
                 .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
 
-        User user = userRepository.findById(token.getUser().getUserId())
+        User user = userRepository.findByUserIdAndDeletedAtIsNull(token.getUser().getUserId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
         Page<QuizRecord> quizRecordPage = quizRecordRepository.findByUserAndDeletedAtIsNull(user, pageable);

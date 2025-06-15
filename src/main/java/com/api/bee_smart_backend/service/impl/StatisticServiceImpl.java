@@ -211,9 +211,9 @@ public class StatisticServiceImpl implements StatisticService {
         Page<QuizRecord> quizRecordPage;
 
         if (search == null || search.isBlank()) {
-            quizRecordPage = quizRecordRepository.findByUser(user, pageable);
+            quizRecordPage = quizRecordRepository.findByUserAndDeletedAtIsNull(user, pageable);
         } else {
-            quizRecordPage = quizRecordRepository.findByUserAndQuizTitleContainingIgnoreCase(user, search, pageable);
+            quizRecordPage = quizRecordRepository.findByUserAndQuizTitleContainingIgnoreCaseAndDeletedAtIsNull(user, search, pageable);
         }
 
         List<QuizRecord> filteredRecords = quizRecordPage.getContent();
