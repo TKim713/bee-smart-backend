@@ -78,8 +78,8 @@ public class TopicController {
         }
     }
 
-    @GetMapping
-    public ResponseEntity<ResponseObject<Map<String, Object>>> getTopicsBySubjectGradeAndSemester(
+    @GetMapping("/topic-lesson")
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getTopicsAndLessonsBySubjectGradeAndSemester(
             @RequestParam String subject,
             @RequestParam String grade,
             @RequestParam String semester,
@@ -88,7 +88,7 @@ public class TopicController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String bookType) { // Thêm bookType
         try {
-            Map<String, Object> result = topicService.getTopicsBySubjectGradeAndSemester(subject, grade, semester, page, size, search, bookType);
+            Map<String, Object> result = topicService.getTopicsAndLessonsBySubjectGradeAndSemester(subject, grade, semester, page, size, search, bookType);
 
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy chủ đề thành công", result.isEmpty() ? Collections.emptyMap() : result));
@@ -182,6 +182,29 @@ public class TopicController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi xóa chủ đề: " + e.getMessage(), null));
+        }
+    }
+
+    @GetMapping
+    public ResponseEntity<ResponseObject<Map<String, Object>>> getTopicsBySubjectGradeAndSemester(
+            @RequestParam String subject,
+            @RequestParam String grade,
+            @RequestParam String semester,
+            @RequestParam(required = false) String page,
+            @RequestParam(required = false) String size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String bookType) {
+        try {
+            Map<String, Object> result = topicService.getTopicsBySubjectGradeAndSemester(subject, grade, semester, page, size, search, bookType);
+
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "Lấy danh sách chủ đề thành công", result.isEmpty() ? Collections.emptyMap() : result));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ResponseObject<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
         }
     }
 }

@@ -2,8 +2,10 @@ package com.api.bee_smart_backend.service;
 
 import com.api.bee_smart_backend.helper.request.QuizRequest;
 import com.api.bee_smart_backend.helper.request.SubmissionRequest;
+import com.api.bee_smart_backend.helper.response.QuizRecordResponse;
 import com.api.bee_smart_backend.helper.response.QuizResponse;
 import com.api.bee_smart_backend.helper.response.SubmissionResponse;
+import com.api.bee_smart_backend.model.record.QuizRecord;
 
 import java.util.List;
 import java.util.Map;
@@ -24,4 +26,8 @@ public interface QuizService {
     Map<String, Object> getQuizzesByLessonId(String lessonId, String page, String size);
 
     Map<String, Object> submitQuiz(String jwtToken, String quizId, SubmissionRequest request, String page, String size);
+
+    Map<String, Object> getQuizRecordsByUser(String userId, String page, String size);
+
+    QuizRecordResponse getQuizRecordById(String jwtToken, String recordId);
 }

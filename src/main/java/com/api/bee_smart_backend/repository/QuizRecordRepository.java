@@ -22,4 +22,6 @@ public interface QuizRecordRepository extends MongoRepository<QuizRecord, String
     Page<QuizRecord> findByUserAndQuizTitleContainingIgnoreCase(User user, String search, Pageable pageable);
 
     List<QuizRecord> findByUserAndSubmitDateBetween(User user, LocalDateTime start, LocalDateTime end);
+
+    Page<QuizRecord> findByUserAndDeletedAtIsNull(User user, Pageable pageable);
 }

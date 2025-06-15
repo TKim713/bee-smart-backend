@@ -2,6 +2,7 @@ package com.api.bee_smart_backend.model.record;
 
 import com.api.bee_smart_backend.model.Quiz;
 import com.api.bee_smart_backend.model.User;
+import com.api.bee_smart_backend.helper.response.QuestionResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,6 +15,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List; // Add import for List
 
 @Data
 @Builder
@@ -37,6 +39,8 @@ public class QuizRecord {
     private long timeSpent;
 
     private LocalDate submitDate;
+
+    private List<QuestionResult> questionResults;
 
     @CreatedDate
     private Instant createdAt;
