@@ -15,6 +15,8 @@ import java.util.List;
 public class QuizRecordResponse {
     private String recordId;
     private String username;
+    private String topicName;
+    private String lessonName;
     private String quizName;
     private int totalQuestions;
     private int correctAnswers;

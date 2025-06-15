@@ -239,21 +239,29 @@ public class StatisticServiceImpl implements StatisticService {
 
                         return false;
                     })
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         List<QuizRecordResponse> quizRecordResponses = filteredRecords.stream()
-                .map(quizRecord -> QuizRecordResponse.builder()
-                        .recordId(quizRecord.getRecordId())
-                        .username(quizRecord.getUser().getUsername())
-                        .quizName(quizRecord.getQuiz().getTitle())
-                        .totalQuestions(quizRecord.getTotalQuestions())
-                        .correctAnswers(quizRecord.getCorrectAnswers())
-                        .points(quizRecord.getPoints())
-                        .timeSpent(quizRecord.getTimeSpent())
-                        .questionResults(quizRecord.getQuestionResults()) // Include questionResults
-                        .createdAt(quizRecord.getCreatedAt())
-                        .build())
+                .map(quizRecord -> {
+                    Quiz quiz = quizRecord.getQuiz();
+                    String lessonName = (quiz.getLesson() != null) ? quiz.getLesson().getLessonName() : null; // Handle null lesson
+                    String topicName = (quiz.getTopic() != null) ? quiz.getTopic().getTopicName() : null; // Handle null topic for safety
+
+                    return QuizRecordResponse.builder()
+                            .recordId(quizRecord.getRecordId())
+                            .username(quizRecord.getUser().getUsername())
+                            .topicName(topicName)
+                            .lessonName(lessonName) // Use computed lessonName
+                            .quizName(quizRecord.getQuiz().getTitle())
+                            .totalQuestions(quizRecord.getTotalQuestions())
+                            .correctAnswers(quizRecord.getCorrectAnswers())
+                            .points(quizRecord.getPoints())
+                            .timeSpent(quizRecord.getTimeSpent())
+                            .questionResults(quizRecord.getQuestionResults())
+                            .createdAt(quizRecord.getCreatedAt())
+                            .build();
+                })
                 .toList();
 
         Map<String, Object> response = new HashMap<>();
