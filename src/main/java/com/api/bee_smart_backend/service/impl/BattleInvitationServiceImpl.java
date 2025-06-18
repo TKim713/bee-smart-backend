@@ -237,6 +237,7 @@ public class BattleInvitationServiceImpl implements BattleInvitationService {
                 .message(user.getUsername() + " đã từ chối lời mời thách đấu")
                 .type("BATTLE_DECLINED")
                 .read(false)
+                .createdAt(Instant.now())
                 .build();
 
         notificationRepository.save(inviterNotification);
