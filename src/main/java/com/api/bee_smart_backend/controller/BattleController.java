@@ -7,6 +7,8 @@ import com.api.bee_smart_backend.helper.response.BattleHistoryResponse;
 import com.api.bee_smart_backend.helper.response.BattleResponse;
 import com.api.bee_smart_backend.helper.response.BattleUserResponse;
 import com.api.bee_smart_backend.helper.response.ResponseObject;
+import com.api.bee_smart_backend.model.Token;
+import com.api.bee_smart_backend.repository.TokenRepository;
 import com.api.bee_smart_backend.service.BattleService;
 import com.api.bee_smart_backend.service.GradeService;
 import com.api.bee_smart_backend.service.SubjectService;
@@ -34,6 +36,9 @@ public class BattleController {
 
     @Autowired
     private SubjectService subjectService;
+
+    @Autowired
+    private TokenRepository tokenRepository;
 
     @GetMapping
     public ResponseEntity<ResponseObject<Map<String, Object>>> getAllBattles(
@@ -181,6 +186,29 @@ public class BattleController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Lỗi bất ngờ xảy ra: " + e.getMessage(), null));
+        }
+    }
+
+    // BattleController.java
+    @PostMapping("/{battleId}/leave")
+    public ResponseEntity<ResponseObject<String>> leaveBattle(
+            @PathVariable String battleId,
+            @RequestHeader("Authorization") String token) {
+        try {
+            String jwtToken = token.replace("Bearer ", "");
+            Token userToken = tokenRepository.findByAccessToken(jwtToken)
+                    .orElseThrow(() -> new CustomException("Invalid token", HttpStatus.UNAUTHORIZED));
+            String userId = userToken.getUser().getUserId();
+
+            battleService.endBattleWithWinner(battleId, userId);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseObject<>(HttpStatus.OK.value(), "You have left the battle!", "Battle " + battleId + " ended due to player leaving"));
+        } catch (CustomException e) {
+            return ResponseEntity.status(e.getStatus())
+                    .body(new ResponseObject<>(e.getStatus().value(), e.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ResponseObject<>(HttpStatus.BAD_REQUEST.value(), "Error leaving battle: " + e.getMessage(), null));
         }
     }
 }
