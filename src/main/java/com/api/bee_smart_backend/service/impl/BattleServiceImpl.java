@@ -403,6 +403,10 @@ public class BattleServiceImpl implements BattleService {
         battle.setWinner(winnerId);
         battleRepository.save(battle);
 
+        battleQuestionNumbers.remove(battleId);
+        questionAnswers.remove(battleId);
+        timeoutTasks.remove(battleId);
+
         BattleResponse finalResponse = mapData.mapOne(battle, BattleResponse.class);
 
         // Include PlayerScore in WebSocket message

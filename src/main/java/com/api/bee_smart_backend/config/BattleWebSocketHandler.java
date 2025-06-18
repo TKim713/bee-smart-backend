@@ -30,6 +30,8 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
 
     private final Map<String, List<WebSocketSession>> matchmakingQueues = new ConcurrentHashMap<>();
 
+    private final Map<String, Boolean> battleReady = new ConcurrentHashMap<>();
+
     @Autowired
     private ApplicationContext applicationContext;
 
@@ -66,7 +68,6 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
                 ))));
             }
         } else {
-            // Battle reconnection logic
             CopyOnWriteArrayList<WebSocketSession> sessionList =
                     battleSessions.computeIfAbsent(battleId, k -> new CopyOnWriteArrayList<>());
 
@@ -81,18 +82,16 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
             BattleService battleService = applicationContext.getBean(BattleService.class);
             BattleResponse battle = battleService.getBattleById(battleId);
 
-            // First send joined message
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
                     "type", "JOINED",
                     "battleId", battleId
             ))));
 
-            // Then send current battle state
             if ("ONGOING".equals(battle.getStatus())) {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(battle)));
-
-                // If both players are connected, send the current question or a new one
-                if (sessionList.size() >= 2) {
+                // Mark battle as ready only when both players are connected
+                if (sessionList.size() >= 2 && !battleReady.getOrDefault(battleId, false)) {
+                    battleReady.put(battleId, true);
                     battleService.sendNextQuestion(battleId);
                 }
             }
@@ -122,7 +121,6 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
 
             String battleId = battle.getBattleId();
 
-            // Append sessions safely
             CopyOnWriteArrayList<WebSocketSession> sessionList =
                     battleSessions.computeIfAbsent(battleId, k -> new CopyOnWriteArrayList<>());
 
@@ -137,13 +135,12 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
             player1.sendMessage(new TextMessage(startMessage));
             player2.sendMessage(new TextMessage(startMessage));
 
-            // Call sendNextQuestion after battle creation
-            battleService.sendNextQuestion(battleId);
+            // Initialize battle as not ready until both players confirm connection
+            battleReady.put(battleId, false);
 
             log.info("Battle created with ID: {} between users {} and {}", battleId, userId1, userId2);
         } catch (Exception e) {
             log.error("Error creating battle", e);
-            // Error handling code...
         }
     }
 
