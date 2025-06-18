@@ -233,30 +233,47 @@ public class QuizServiceImpl implements QuizService {
         int correctAnswersCount = 0;
 
         List<QuestionResult> results = new ArrayList<>();
-        for (UserAnswer userAnswer : request.getAnswers()) {
-            Question question = allQuestions.stream()
-                    .filter(q -> q.getQuestionId().equals(userAnswer.getQuestionId()))
-                    .findFirst()
-                    .orElseThrow(() -> new CustomException("Không tìm thấy câu hỏi với ID: " + userAnswer.getQuestionId(), HttpStatus.BAD_REQUEST));
 
+        // Create a map of user answers for easier lookup
+        Map<String, UserAnswer> userAnswerMap = request.getAnswers().stream()
+                .filter(userAnswer -> userAnswer.getQuestionId() != null)
+                .collect(Collectors.toMap(UserAnswer::getQuestionId, ua -> ua));
+
+        // Iterate over all questions to ensure every question is included in the results
+        for (Question question : allQuestions) {
+            UserAnswer userAnswer = userAnswerMap.get(question.getQuestionId());
             boolean isCorrect = false;
+            String userAnswerText;
+            List<String> userAnswersList = null;
 
-            if (question.getQuestionType() == QuestionType.MULTIPLE_CHOICE) {
-                isCorrect = question.getCorrectAnswer().equals(userAnswer.getSelectedAnswer());
-            } else if (question.getQuestionType() == QuestionType.MULTI_SELECT) {
-                isCorrect = new HashSet<>(question.getCorrectAnswers()).containsAll(userAnswer.getSelectedAnswers())
-                        && new HashSet<>(userAnswer.getSelectedAnswers()).containsAll(question.getCorrectAnswers());
-            } else if (question.getQuestionType() == QuestionType.FILL_IN_THE_BLANK) {
-                isCorrect = question.getAnswers().stream()
-                        .anyMatch(answer -> answer.equalsIgnoreCase(userAnswer.getSelectedAnswer()));
-            } else {
-                throw new CustomException("Loại câu hỏi không hợp lệ", HttpStatus.BAD_REQUEST);
+            if (userAnswer != null) {
+                // Process the user's answer if it exists
+                if (question.getQuestionType() == QuestionType.MULTIPLE_CHOICE) {
+                    userAnswerText = userAnswer.getSelectedAnswer();
+                    isCorrect = question.getCorrectAnswer().equals(userAnswerText);
+                } else if (question.getQuestionType() == QuestionType.MULTI_SELECT) {
+                    userAnswerText = null;
+                    userAnswersList = userAnswer.getSelectedAnswers();
+                    isCorrect = userAnswersList != null &&
+                            new HashSet<>(question.getCorrectAnswers()).containsAll(userAnswersList) &&
+                            new HashSet<>(userAnswersList).containsAll(question.getCorrectAnswers());
+                } else if (question.getQuestionType() == QuestionType.FILL_IN_THE_BLANK) {
+                    userAnswerText = userAnswer.getSelectedAnswer();
+                    isCorrect = question.getAnswers().stream()
+                            .anyMatch(answer -> answer.equalsIgnoreCase(userAnswerText));
+                } else {
+                    userAnswerText = null;
+                }
+            } // If userAnswer is null, isCorrect remains false, and userAnswerText/answersList remain null
+            else {
+                userAnswerText = null;
             }
 
             if (isCorrect) {
                 correctAnswersCount++;
             }
 
+            // Build the QuestionResult for this question
             results.add(QuestionResult.builder()
                     .questionId(question.getQuestionId())
                     .content(question.getContent())
@@ -264,24 +281,20 @@ public class QuizServiceImpl implements QuizService {
                     .options(question.getOptions())
                     .correctAnswer(question.getCorrectAnswer())
                     .correctAnswers(question.getCorrectAnswers() != null ? question.getCorrectAnswers() : question.getAnswers())
-                    .answers(userAnswer.getSelectedAnswers())
-                    .userAnswer(userAnswer.getSelectedAnswer())
+                    .answers(userAnswersList)
+                    .userAnswer(userAnswerText)
                     .isCorrect(isCorrect)
                     .build());
         }
 
         double points = Math.round((double) correctAnswersCount / allQuestions.size() * 10);
 
-        int fromIndex = Math.min(pageNumber * pageSize, results.size());
-        int toIndex = Math.min(fromIndex + pageSize, results.size());
-        List<QuestionResult> paginatedResults = results.subList(fromIndex, toIndex);
-
         Token token = tokenRepository.findByAccessToken(jwtToken)
                 .orElseThrow(() -> new CustomException("Không tìm thấy token", HttpStatus.NOT_FOUND));
         User user = userRepository.findById(token.getUser().getUserId())
                 .orElseThrow(() -> new CustomException("Không tìm thấy người dùng", HttpStatus.NOT_FOUND));
 
-        // Updated QuizRecord to include questionResults
+        // Create and save QuizRecord
         QuizRecord quizRecord = QuizRecord.builder()
                 .user(user)
                 .quiz(quiz)
@@ -292,7 +305,7 @@ public class QuizServiceImpl implements QuizService {
                 .timeSpent(request.getTimeSpent())
                 .submitDate(today)
                 .createdAt(now)
-                .questionResults(results) // Store the full results list
+                .questionResults(results) // Store all results
                 .build();
 
         QuizRecord savedQuizRecord = quizRecordRepository.save(quizRecord);
@@ -318,6 +331,11 @@ public class QuizServiceImpl implements QuizService {
                 log.error("Error sending notification", e);
             }
         }
+
+        // Paginate the results for the response
+        int fromIndex = Math.min(pageNumber * pageSize, results.size());
+        int toIndex = Math.min(fromIndex + pageSize, results.size());
+        List<QuestionResult> paginatedResults = results.subList(fromIndex, toIndex);
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("totalQuestions", allQuestions.size());
