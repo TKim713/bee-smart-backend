@@ -56,7 +56,7 @@ public class LessonServiceImpl implements LessonService {
         Page<Lesson> lessonPage;
 
         if (search == null || search.isBlank()) {
-            lessonPage = lessonRepository.findAll(pageable);
+            lessonPage = lessonRepository.findByDeletedAtIsNull(pageable);
         } else {
             lessonPage = lessonRepository.findByLessonNameContainingIgnoreCaseOrDescriptionContainingIgnoreCaseAndDeletedAtIsNull(search, search, pageable);
         }

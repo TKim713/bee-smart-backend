@@ -18,5 +18,7 @@ public interface LessonRepository extends MongoRepository<Lesson, String> {
 
     @Query("{ 'topic' : ?0, '$or' : [ { 'lessonName' : { '$regex' : ?1, '$options' : 'i' } }, { 'description' : { '$regex' : ?1, '$options' : 'i' } } ] }")
     Page<Lesson> findByTopicAndSearchAndDeletedAtIsNull(Topic topic, String search, Pageable pageable);
+
+    Page<Lesson> findByDeletedAtIsNull(Pageable pageable);
 }
 
