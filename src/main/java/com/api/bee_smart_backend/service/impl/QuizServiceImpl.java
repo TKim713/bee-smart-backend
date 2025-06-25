@@ -392,7 +392,8 @@ public class QuizServiceImpl implements QuizService {
         boolean isOwner = quizRecord.getUser().getUserId().equals(user.getUserId());
         String userRole = String.valueOf(user.getRole());
         boolean isAdmin = userRole != null && userRole.equalsIgnoreCase("SYSTEM_ADMIN");
-        if (!isOwner && !isAdmin) {
+        boolean isParent = userRole != null && userRole.equalsIgnoreCase("PARENT");
+        if (!isOwner && !isAdmin && !isParent) {
             throw new CustomException("Không có quyền truy cập kết quả quiz này", HttpStatus.FORBIDDEN);
         }
 

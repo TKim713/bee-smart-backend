@@ -73,26 +73,32 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
 
             if (!sessionList.contains(session)) {
                 sessionList.add(session);
-                log.info("User {} reconnected and added to battle {}", userId, battleId);
-            } else {
-                log.info("User {} already present in battle {}", userId, battleId);
-            }
+                log.info("User {} reconnected to battle {}", userId, battleId);
 
-            // Send current battle state to reconnected user
-            BattleService battleService = applicationContext.getBean(BattleService.class);
-            BattleResponse battle = battleService.getBattleById(battleId);
+                // Notify other players of reconnection
+                broadcastUpdate(battleId, objectMapper.writeValueAsString(Map.of(
+                        "type", "PLAYER_RECONNECTED",
+                        "userId", userId,
+                        "message", "Player reconnected"
+                )));
 
-            session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
-                    "type", "JOINED",
-                    "battleId", battleId
-            ))));
+                // Send current battle state to reconnected user
+                BattleService battleService = applicationContext.getBean(BattleService.class);
+                BattleResponse battle = battleService.getBattleById(battleId);
 
-            if ("ONGOING".equals(battle.getStatus())) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(battle)));
-                // Mark battle as ready only when both players are connected
-                if (sessionList.size() >= 2 && !battleReady.getOrDefault(battleId, false)) {
-                    battleReady.put(battleId, true);
-                    battleService.sendNextQuestion(battleId);
+                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(Map.of(
+                        "type", "JOINED",
+                        "battleId", battleId,
+                        "battle", battle
+                ))));
+
+                if ("ONGOING".equals(battle.getStatus())) {
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(battle)));
+                    // Mark battle as ready only when both players are connected
+                    if (sessionList.size() >= 2 && !battleReady.getOrDefault(battleId, false)) {
+                        battleReady.put(battleId, true);
+                        battleService.sendNextQuestion(battleId);
+                    }
                 }
             }
         }
@@ -177,7 +183,7 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
             CopyOnWriteArrayList<WebSocketSession> sessions = battleSessions.get(battleId);
             if (sessions != null) {
                 sessions.remove(session);
-                log.info("User {} left battle {}", userId, battleId);
+                log.info("User {} disconnected from battle {}", userId, battleId);
 
                 try {
                     BattleService battleService = applicationContext.getBean(BattleService.class);
@@ -185,29 +191,27 @@ public class BattleWebSocketHandler extends TextWebSocketHandler {
 
                     if ("ONGOING".equals(battle.getStatus())) {
                         broadcastUpdate(battleId, objectMapper.writeValueAsString(Map.of(
-                                "type", "PLAYER_LEFT",
-                                "userId", userId
+                                "type", "PLAYER_DISCONNECTED",
+                                "userId", userId,
+                                "message", "Player disconnected, waiting for reconnection..."
                         )));
 
-                        // Instead of ending the battle immediately, set a timeout
-                        // This allows the user time to reconnect
-                        if (sessions.isEmpty()) {
-                            // Schedule battle end after 30 seconds if no players remain
-                            new Timer().schedule(new TimerTask() {
-                                @Override
-                                public void run() {
-                                    List<WebSocketSession> currentSessions = battleSessions.get(battleId);
-                                    if (currentSessions == null || currentSessions.isEmpty()) {
-                                        try {
-                                            battleService.endBattle(battleId);
-                                            log.info("Battle {} ended due to no active players", battleId);
-                                        } catch (Exception e) {
-                                            log.error("Error ending abandoned battle", e);
-                                        }
+                        // Schedule battle end after 60 seconds if the player doesn't reconnect
+                        new Timer().schedule(new TimerTask() {
+                            @Override
+                            public void run() {
+                                List<WebSocketSession> currentSessions = battleSessions.get(battleId);
+                                if (currentSessions != null && !currentSessions.stream().anyMatch(s -> userId.equals(s.getAttributes().get("userId")))) {
+                                    try {
+                                        // Declare the remaining player as the winner
+                                        battleService.endBattleWithWinner(battleId, userId);
+                                        log.info("Battle {} ended due to player {} failing to reconnect", battleId, userId);
+                                    } catch (Exception e) {
+                                        log.error("Error ending battle after reconnection timeout", e);
                                     }
                                 }
-                            }, 30000); // 30 second timeout
-                        }
+                            }
+                        }, 60000); // 60-second reconnection grace period
                     }
                 } catch (Exception e) {
                     log.error("Error handling player disconnect from battle", e);

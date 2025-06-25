@@ -36,4 +36,7 @@ public interface BattleService {
     Map<String, Object> getOnlineList(String jwtToken, String page, String size, String search);
 
     BattleUserResponse getBattleUserDetail(String jwtToken, Pageable pageable);
+
+    // BattleServiceImpl.java
+    void endBattleWithWinner(String battleId, String disconnectedUserId);
 }

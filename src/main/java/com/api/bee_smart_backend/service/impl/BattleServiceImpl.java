@@ -644,4 +644,68 @@ public class BattleServiceImpl implements BattleService {
                 .historyResponses(historyResponses)
                 .build();
     }
+
+    @Override
+    public void endBattleWithWinner(String battleId, String disconnectedUserId) {
+        Battle battle = battleRepository.findById(battleId)
+                .orElseThrow(() -> new CustomException("Battle not found!", HttpStatus.NOT_FOUND));
+
+        if ("ENDED".equals(battle.getStatus())) {
+            log.warn("Battle {} is already ended", battleId);
+            return;
+        }
+
+        battle.setStatus("ENDED");
+        battle.setEndTime(LocalDate.now(ZoneId.systemDefault()));
+        battle.setUpdatedAt(Instant.now());
+        battleQuestionNumbers.remove(battleId);
+
+        // Determine the remaining player as the winner
+        Optional<PlayerScore> winnerScore = battle.getPlayerScores().stream()
+                .filter(ps -> !ps.getUserId().equals(disconnectedUserId))
+                .findFirst();
+        String winnerId = winnerScore.map(PlayerScore::getUserId).orElse(null);
+
+        // Update BattleUser records
+        for (PlayerScore playerScore : battle.getPlayerScores()) {
+            User user = userRepository.findById(playerScore.getUserId())
+                    .orElseThrow(() -> new CustomException("User not found with ID: " + playerScore.getUserId(), HttpStatus.NOT_FOUND));
+            Optional<BattleUser> battleUserOpt = battleUserRepository.findByUserAndDeletedAtIsNull(user);
+            BattleUser battleUser = battleUserOpt.orElseGet(() -> {
+                BattleUser newBattleUser = BattleUser.builder()
+                        .user(user)
+                        .totalBattleWon(0)
+                        .totalBattleLost(0)
+                        .createdAt(Instant.now())
+                        .build();
+                return battleUserRepository.save(newBattleUser);
+            });
+
+            if (playerScore.getUserId().equals(winnerId)) {
+                battleUser.setTotalBattleWon(battleUser.getTotalBattleWon() + 1);
+            } else {
+                battleUser.setTotalBattleLost(battleUser.getTotalBattleLost() + 1);
+            }
+            battleUserRepository.save(battleUser);
+        }
+
+        battle.setWinner(winnerId);
+        battleRepository.save(battle);
+
+        questionAnswers.remove(battleId);
+        timeoutTasks.remove(battleId);
+
+        BattleResponse finalResponse = mapData.mapOne(battle, BattleResponse.class);
+
+        try {
+            Map<String, Object> endMsg = new HashMap<>(new ObjectMapper().convertValue(finalResponse, Map.class));
+            endMsg.put("type", "END");
+            endMsg.put("playerScores", battle.getPlayerScores());
+            endMsg.put("reason", "OPPONENT_LEFT");
+            endMsg.put("winnerId", winnerId); // Explicitly include winnerId
+            webSocketHandler.broadcastUpdate(battleId, new ObjectMapper().writeValueAsString(endMsg));
+        } catch (Exception e) {
+            log.error("Error sending final results via WebSocket", e);
+        }
+    }
 }
